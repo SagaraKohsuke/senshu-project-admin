@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝夕食予約システム - 管理画面</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <style>
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+    .container { max-width: 1000px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { color: #333; margin-top: 0; }
+    h2.month-header { color: #2c3e50; text-align: center; margin: 20px 0 15px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    select, input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background-color: white; font-size: 16px; }
+    .loading { display: flex; justify-content: center; padding: 20px; color: #666; }
+    /* カレンダースタイル */
+    .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 20px; }
+    .weekday-header { text-align: center; font-weight: bold; padding: 8px; background-color: #f0f0f0; border-radius: 4px; }
+    .calendar-cell { min-height: 120px; border: 1px solid #ddd; border-radius: 4px; padding: 5px; background-color: white; }
+    .calendar-cell.today { background-color: #fff8e1; border-color: #ffca28; }
+    .empty-cell { background-color: #f9f9f9; }
+    .date-header { font-weight: bold; text-align: right; border-bottom: 1px solid #eee; padding-bottom: 3px; margin-bottom: 5px; }
+    .meal-section { font-size: 0.85rem; }
+    .meal-item { margin-bottom: 5px; }
+    .meal-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+    .meal-count { display: inline-block; background-color: #4285f4; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
+    .menu { font-size: 0.8rem; color: #555; padding-left: 5px; margin-bottom: 5px; }
+    .menu-edit { display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px; }
+    .menu-edit-inputs { display: flex; gap: 5px; }
+    .menu-edit input { flex: 1; padding: 3px 5px; font-size: 0.8rem; }
+    .menu-edit button { background-color: #4285f4; color: white; border: none; border-radius: 3px; padding: 3px 6px; font-size: 0.8rem; cursor: pointer; }
+    .menu-history { width: 100%; overflow: hidden; }
+    .menu-history-select { width: 100%; padding: 3px; font-size: 0.8rem; border: 1px solid #ddd; border-radius: 3px; }
+    .users-list { font-size: 0.75rem; margin-top: 5px; max-height: 60px; overflow-y: auto; padding: 3px; background-color: #f9f9f9; border-radius: 3px; }
+    .users-list p { margin: 2px 0; }
+    .unavailable { font-size: 0.8rem; color: #999; }
+    hr { margin: 8px 0; border: none; border-top: 1px dotted #ddd; }
+    .month-navigation { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 20px; flex-wrap: wrap; }
+    .month-navigation button { background-color: #4285f4; color: white; border: none; border-radius: 4px; padding: 8px 15px; cursor: pointer; font-size: 14px; margin: 5px; }
+    .month-navigation button:disabled { background-color: #b0bec5; cursor: not-allowed; }
+    .month-navigation h3 { margin: 5px 10px; }
+    .calendar-container { margin-top: 20px; }
+    .admin-header { background-color: #2c3e50; color: white; padding: 10px; margin: -20px -20px 20px -20px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .admin-header h1 { color: white; margin: 0; }
+    .admin-badge { background-color: #e74c3c; color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.8rem; font-weight: bold; }
+    .summary-section { background-color: #ecf0f1; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    .summary-title { font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .total-count { background-color: #3498db; color: white; padding: 2px 8px; border-radius: 3px; }
+    /* モバイル対応 */
+    @media (max-width: 600px) {
+      .month-navigation { flex-direction: column; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="container">
+    <div class="admin-header">
+      <h1>朝夕食予約システム</h1>
+      <span class="admin-badge">管理者画面</span>
+    </div>
+
+    <div class="form-group" v-if="loading">
+      <div class="loading">読み込み中...</div>
+    </div>
+
+    <div v-else>
+      <div class="month-navigation">
+        <button @click="prevMonth" :disabled="calendarLoading">&laquo; 前月</button>
+        <h3>{{ currentYear }}年 {{ currentMonth }}月</h3>
+        <button @click="nextMonth" :disabled="calendarLoading">次月 &raquo;</button>
+        <button @click="exportExcel" :disabled="calendarLoading">Excel出力</button>
+      </div>
+
+      <div class="summary-section" v-if="isCurrentMonth">
+        <div class="summary-title">
+          <span>本日の予約状況</span>
+          <span class="total-count">朝食: {{ todayBreakfastCount }}食 / 夕食: {{ todayDinnerCount }}食</span>
+        </div>
+        <div v-if="todayBreakfastCount > 0 || todayDinnerCount > 0">
+          <div v-if="todayBreakfastCount > 0">
+            <strong>朝食予約者:</strong>
+            <div class="users-list" style="max-height: none;">
+              <p v-for="(user, idx) in todayBreakfastUsers" :key="'tb-' + idx">
+                {{ user.userId }}号室 - {{ user.userName }}
+              </p>
+            </div>
+          </div>
+          <div v-if="todayDinnerCount > 0" style="margin-top: 10px;">
+            <strong>夕食予約者:</strong>
+            <div class="users-list" style="max-height: none;">
+              <p v-for="(user, idx) in todayDinnerUsers" :key="'td-' + idx">
+                {{ user.userId }}号室 - {{ user.userName }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div v-else>
+          <p>本日の予約はありません。</p>
+        </div>
+      </div>
+
+      <div class="calendar-container" v-if="calendarLoaded">
+        <div class="calendar">
+          <div v-for="(day, index) in weekdays" :key="index" class="weekday-header">{{ day }}</div>
+        </div>
+        <div class="calendar" style="margin-top: 1px;">
+          <div v-for="i in offset" :key="'empty-' + i" class="calendar-cell empty-cell"></div>
+          <div v-for="date in monthDates" :key="date" class="calendar-cell" :class="{ 'today': isToday(date) }">
+            <div class="date-header">{{ getDayFromDate(date) }}</div>
+            <div class="meal-section">
+              <div v-if="getBreakfastForDate(date)" class="meal-item">
+                <div class="meal-title">
+                  <strong>朝食</strong>
+                  <span class="meal-count">{{ getBreakfastForDate(date).count }}食</span>
+                </div>
+                <div class="menu">
+                  メニュー: {{ getBreakfastForDate(date).menuName }}
+                </div>
+                <div class="menu-edit">
+                  <div class="menu-history">
+                    <select class="menu-history-select" v-model="breakfastMenuInputs[getBreakfastForDate(date).calendarId]" @change="selectBreakfastMenu(getBreakfastForDate(date).calendarId)">
+                      <option value="">-- メニューを選択 --</option>
+                      <option v-for="menu in breakfastMenuList" :key="menu" :value="menu">
+                        {{ menu }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="menu-edit-inputs">
+                    <input type="text" v-model="breakfastMenuInputs[getBreakfastForDate(date).calendarId]" placeholder="メニューを入力" >
+                    <button @click="updateMenu('breakfast', getBreakfastForDate(date).calendarId)">変更</button>
+                  </div>
+                </div>
+                <div v-if="getBreakfastForDate(date).count > 0" class="users-list">
+                  <p v-for="(user, idx) in getBreakfastForDate(date).users" :key="'b-' + date + '-' + idx">
+                    {{ user.userId }}号室 - {{ user.userName }}
+                  </p>
+                </div>
+              </div>
+              <div v-else class="meal-item">
+                <div class="meal-title">
+                  <strong>朝食</strong>
+                  <span class="unavailable">✗</span>
+                </div>
+              </div>
+
+              <hr />
+
+              <div v-if="getDinnerForDate(date) && !isSaturday(date)" class="meal-item">
+                <div class="meal-title">
+                  <strong>夕食</strong>
+                  <span class="meal-count">{{ getDinnerForDate(date).count }}食</span>
+                </div>
+                <div class="menu">
+                  メニュー: {{ getDinnerForDate(date).menuName }}
+                </div>
+                <div class="menu-edit">
+                  <div class="menu-history">
+                    <select class="menu-history-select" v-model="dinnerMenuInputs[getDinnerForDate(date).calendarId]" @change="selectDinnerMenu(getDinnerForDate(date).calendarId)">
+                      <option value="">-- メニューを選択 --</option>
+                      <option v-for="menu in dinnerMenuList" :key="menu" :value="menu">
+                        {{ menu }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="menu-edit-inputs">
+                    <input type="text" v-model="dinnerMenuInputs[getDinnerForDate(date).calendarId]" placeholder="メニューを入力" >
+                    <button @click="updateMenu('dinner', getDinnerForDate(date).calendarId)">変更</button>
+                  </div>
+                </div>
+                <div v-if="getDinnerForDate(date).count > 0" class="users-list">
+                  <p v-for="(user, idx) in getDinnerForDate(date).users" :key="'d-' + date + '-' + idx">
+                    {{ user.userId }}号室 - {{ user.userName }}
+                  </p>
+                </div>
+              </div>
+              <div v-else-if="isSaturday(date)" class="meal-item">
+                <div class="meal-title">
+                  <strong>夕食</strong>
+                  <span class="unavailable">✗</span>
+                </div>
+              </div>
+              <div v-else class="meal-item">
+                <div class="meal-title">
+                  <strong>夕食</strong>
+                  <span class="unavailable">✗</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else-if="calendarLoading" class="loading">
+        カレンダーデータを読み込み中...
+      </div>
+    </div>
+  </div>
+
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        loading: true,
+        currentYear: new Date().getFullYear(),
+        currentMonth: new Date().getMonth() + 1,
+        calendarLoading: false,
+        calendarLoaded: false,
+        weekdays: ['日', '月', '火', '水', '木', '金', '土'],
+        offset: 0,
+        monthDates: [],
+        breakfastReservations: [],
+        dinnerReservations: [],
+        breakfastMenuInputs: {},
+        dinnerMenuInputs: {},
+        breakfastMenuList: [],
+        dinnerMenuList: []
+      },
+      computed: {
+        isCurrentMonth: function() {
+          const now = new Date();
+          return this.currentYear === now.getFullYear() && this.currentMonth === now.getMonth() + 1;
+        },
+        todayBreakfastCount: function() {
+          if (!this.isCurrentMonth) return 0;
+          const today = new Date();
+          const todayStr = this.formatDate(today);
+          const breakfast = this.getBreakfastForDate(todayStr);
+          return breakfast ? breakfast.count : 0;
+        },
+        todayDinnerCount: function() {
+          if (!this.isCurrentMonth) return 0;
+          const today = new Date();
+          const todayStr = this.formatDate(today);
+          const dinner = this.getDinnerForDate(todayStr);
+          return dinner ? dinner.count : 0;
+        },
+        todayBreakfastUsers: function() {
+          if (!this.isCurrentMonth) return [];
+          const today = new Date();
+          const todayStr = this.formatDate(today);
+          const breakfast = this.getBreakfastForDate(todayStr);
+          return breakfast ? breakfast.users : [];
+        },
+        todayDinnerUsers: function() {
+          if (!this.isCurrentMonth) return [];
+          const today = new Date();
+          const todayStr = this.formatDate(today);
+          const dinner = this.getDinnerForDate(todayStr);
+          return dinner ? dinner.users : [];
+        }
+      },
+      methods: {
+        loadCalendarData: function() {
+          this.calendarLoading = true;
+          this.calendarLoaded = false;
+          this.fetchMenuLists();
+          google.script.run
+            .withSuccessHandler(this.processCalendarData)
+            .withFailureHandler(this.handleCalendarError)
+            .getMonthlyReservationCounts(this.currentYear, this.currentMonth);
+        },
+        fetchMenuLists: function() {
+          google.script.run
+            .withSuccessHandler(this.processMenuLists)
+            .withFailureHandler(this.handleError)
+            .getMenuLists();
+        },
+        processMenuLists: function(data) {
+          if (data.success) {
+            this.breakfastMenuList = data.breakfast;
+            this.dinnerMenuList = data.dinner;
+          } else {
+            console.error('メニューリストの取得に失敗しました:', data.message);
+          }
+        },
+        processCalendarData: function(data) {
+          if (data.success) {
+            this.createMonthDates();
+            this.breakfastReservations = data.breakfast;
+            this.dinnerReservations = data.dinner;
+            this.initializeMenuInputs();
+            this.calendarLoaded = true;
+          } else {
+            alert(data.message);
+            this.calendarLoaded = false;
+          }
+          this.loading = false;
+          this.calendarLoading = false;
+        },
+        initializeMenuInputs: function() {
+          this.breakfastMenuInputs = {};
+          for (const item of this.breakfastReservations) {
+            this.$set(this.breakfastMenuInputs, item.calendarId, item.menuName !== "未設定" ? item.menuName : "");
+          }
+          this.dinnerMenuInputs = {};
+          for (const item of this.dinnerReservations) {
+            this.$set(this.dinnerMenuInputs, item.calendarId, item.menuName !== "未設定" ? item.menuName : "");
+          }
+        },
+        updateMenu: function(mealType, calendarId) {
+          const menuInput = mealType === 'breakfast' ? this.breakfastMenuInputs[calendarId] : this.dinnerMenuInputs[calendarId];
+          if (!menuInput || menuInput.trim() === '') {
+            alert('メニューを入力してください');
+            return;
+          }
+          this.calendarLoading = true;
+          google.script.run
+            .withSuccessHandler(response => {
+              this.handleMenuUpdateSuccess(response, mealType, calendarId, menuInput);
+            })
+            .withFailureHandler(this.handleError)
+            .updateMenuForCalendar(calendarId, mealType, menuInput, this.currentYear, this.currentMonth);
+        },
+        handleMenuUpdateSuccess: function(response, mealType, calendarId, menuName) {
+          if (response.success) {
+            alert('メニューを更新しました');
+            const targetReservations = mealType === 'breakfast' ? this.breakfastReservations : this.dinnerReservations;
+            const targetMenuList = mealType === 'breakfast' ? this.breakfastMenuList : this.dinnerMenuList;
+            const index = targetReservations.findIndex(item => item.calendarId == calendarId);
+            if (index !== -1) {
+              targetReservations[index].menuName = menuName;
+              targetReservations[index].menuId = response.menuId;
+            }
+            if (response.isNewMenu && !targetMenuList.includes(menuName)) {
+              targetMenuList.push(menuName);
+              targetMenuList.sort();
+            }
+          } else {
+            alert('メニューの更新に失敗しました: ' + response.message);
+          }
+          this.calendarLoading = false;
+        },
+        createMonthDates: function() {
+          const daysInMonth = new Date(this.currentYear, this.currentMonth, 0).getDate();
+          const firstDayOfMonth = new Date(this.currentYear, this.currentMonth - 1, 1);
+          this.offset = firstDayOfMonth.getDay();
+          this.monthDates = [];
+          for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(this.currentYear, this.currentMonth - 1, day);
+            this.monthDates.push(this.formatDate(date));
+          }
+        },
+        formatDate: function(date) {
+          const year = date.getFullYear();
+          const month = (date.getMonth() + 1).toString().padStart(2, "0");
+          const day = date.getDate().toString().padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        },
+        handleCalendarError: function(error) {
+          console.error('カレンダーデータの取得中にエラーが発生しました:', error);
+          this.loading = false;
+          this.calendarLoading = false;
+          alert('カレンダーデータの読み込み中にエラーが発生しました。');
+        },
+        handleError: function(error) {
+          console.error('エラーが発生しました:', error);
+          this.loading = false;
+          this.calendarLoading = false;
+          alert('処理中にエラーが発生しました。ページを更新してください。');
+        },
+        prevMonth: function() {
+          if (this.currentMonth === 1) {
+            this.currentYear--;
+            this.currentMonth = 12;
+          } else {
+            this.currentMonth--;
+          }
+          this.loadCalendarData();
+        },
+        nextMonth: function() {
+          if (this.currentMonth === 12) {
+            this.currentYear++;
+            this.currentMonth = 1;
+          } else {
+            this.currentMonth++;
+          }
+          this.loadCalendarData();
+        },
+        // --- ★ ここがスプレッドシートを開く処理 ---
+        exportExcel: function() {
+          this.calendarLoading = true;
+          google.script.run
+            .withSuccessHandler(response => {
+              this.calendarLoading = false;
+              if (response.success) {
+                alert('スプレッドシートの作成に成功しました。新しいタブでファイルを開きます。');
+                window.open(response.url, '_blank');
+              } else {
+                alert('スプレッドシートの作成に失敗しました: ' + response.message);
+              }
+            })
+            .withFailureHandler(error => {
+              this.calendarLoading = false;
+              this.handleError(error);
+            })
+            .exportMonthlyReservationsToSheet(this.currentYear, this.currentMonth);
+        },
+        // --- ここまで ---
+        getBreakfastForDate: function(dateStr) {
+          return this.breakfastReservations.find(item => item.date === dateStr);
+        },
+        getDinnerForDate: function(dateStr) {
+          return this.dinnerReservations.find(item => item.date === dateStr);
+        },
+        getDayFromDate: function(dateStr) {
+          return dateStr.split('-')[2].replace(/^0/, '');
+        },
+        isSaturday: function(dateStr) {
+          return new Date(dateStr).getDay() === 6;
+        },
+        isSunday: function(dateStr) {
+          return new Date(dateStr).getDay() === 0;
+        },
+        isToday: function(dateStr) {
+          return dateStr === this.formatDate(new Date());
+        },
+        selectBreakfastMenu(calendarId) {
+            // This is just to ensure reactivity, no specific action needed here
+        },
+        selectDinnerMenu(calendarId) {
+            // Same as above
+        },
+      },
+      mounted: function() {
+        this.loadCalendarData();
+      }
+    });
+  </script>
+</body>
+</html>
