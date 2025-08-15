@@ -450,28 +450,60 @@
           }
         },
         processCalendarData: function(data) {
-          if (data.success) {
+          console.log('✅ processCalendarData開始:', data);
+          
+          if (data && data.success) {
             this.createMonthDates();
-            this.breakfastReservations = data.breakfast;
-            this.dinnerReservations = data.dinner;
+            
+            // 配列の存在確認とデフォルト値設定
+            this.breakfastReservations = Array.isArray(data.breakfast) ? data.breakfast : [];
+            this.dinnerReservations = Array.isArray(data.dinner) ? data.dinner : [];
+            
+            console.log('予約データ設定完了:', {
+              breakfastCount: this.breakfastReservations.length,
+              dinnerCount: this.dinnerReservations.length
+            });
+            
             this.initializeMenuInputs();
             this.calendarLoaded = true;
           } else {
-            alert(data.message);
+            const errorMessage = data && data.message ? data.message : 'データの取得に失敗しました';
+            console.error('❌ データ処理エラー:', errorMessage);
+            alert(errorMessage);
             this.calendarLoaded = false;
+            
+            // デフォルト値を設定
+            this.breakfastReservations = [];
+            this.dinnerReservations = [];
           }
           this.loading = false;
           this.calendarLoading = false;
         },
         initializeMenuInputs: function() {
+          console.log('✅ initializeMenuInputs開始');
+          
           this.breakfastMenuInputs = {};
-          for (const item of this.breakfastReservations) {
-            this.$set(this.breakfastMenuInputs, item.calendarId, item.menuName !== "未設定" ? item.menuName : "");
+          if (Array.isArray(this.breakfastReservations)) {
+            for (const item of this.breakfastReservations) {
+              if (item && item.calendarId) {
+                this.$set(this.breakfastMenuInputs, item.calendarId, item.menuName !== "未設定" ? item.menuName : "");
+              }
+            }
           }
+          
           this.dinnerMenuInputs = {};
-          for (const item of this.dinnerReservations) {
-            this.$set(this.dinnerMenuInputs, item.calendarId, item.menuName !== "未設定" ? item.menuName : "");
+          if (Array.isArray(this.dinnerReservations)) {
+            for (const item of this.dinnerReservations) {
+              if (item && item.calendarId) {
+                this.$set(this.dinnerMenuInputs, item.calendarId, item.menuName !== "未設定" ? item.menuName : "");
+              }
+            }
           }
+          
+          console.log('メニュー入力初期化完了:', {
+            breakfastInputs: Object.keys(this.breakfastMenuInputs).length,
+            dinnerInputs: Object.keys(this.dinnerMenuInputs).length
+          });
         },
         updateMenu: function(mealType, calendarId) {
           const menuInput = mealType === 'breakfast' ? this.breakfastMenuInputs[calendarId] : this.dinnerMenuInputs[calendarId];

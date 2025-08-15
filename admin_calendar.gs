@@ -223,44 +223,63 @@ function getRecruitmentStops(year, month) {
 }
 
 function getMonthlyReservationCounts(year, month) {
-  const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
-  const ss = SpreadsheetApp.openById(spreadsheetId);
+  try {
+    console.log(`=== getMonthlyReservationCounts開始: ${year}年${month}月 ===`);
+    
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    console.log('✅ スプレッドシート接続成功');
+    
+    const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
+    const bCalendarSheetName = `b_calendar_${yyyyMM}`;
+    const dCalendarSheetName = `d_calendar_${yyyyMM}`;
+    const bReservationSheetName = `b_reservations_${yyyyMM}`;
+    const dReservationSheetName = `d_reservations_${yyyyMM}`;
+    
+    console.log('検索対象シート:', {
+      bCalendarSheetName,
+      dCalendarSheetName, 
+      bReservationSheetName,
+      dReservationSheetName
+    });
   
-  const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
-  const bCalendarSheetName = `b_calendar_${yyyyMM}`;
-  const dCalendarSheetName = `d_calendar_${yyyyMM}`;
-  const bReservationSheetName = `b_reservations_${yyyyMM}`;
-  const dReservationSheetName = `d_reservations_${yyyyMM}`;
+    // シートの存在確認
+    const bCalendarSheet = ss.getSheetByName(bCalendarSheetName);
+    const dCalendarSheet = ss.getSheetByName(dCalendarSheetName);
+    const bReservationSheet = ss.getSheetByName(bReservationSheetName);
+    const dReservationSheet = ss.getSheetByName(dReservationSheetName);
+    const usersSheet = ss.getSheetByName("users");
+    const bMenuSheet = ss.getSheetByName("b_menus");
+    const dMenuSheet = ss.getSheetByName("d_menus");
+    
+    console.log('シート存在確認:', {
+      bCalendarSheet: !!bCalendarSheet,
+      dCalendarSheet: !!dCalendarSheet,
+      bReservationSheet: !!bReservationSheet,
+      dReservationSheet: !!dReservationSheet,
+      usersSheet: !!usersSheet
+    });
   
-  // シートの存在確認
-  const bCalendarSheet = ss.getSheetByName(bCalendarSheetName);
-  const dCalendarSheet = ss.getSheetByName(dCalendarSheetName);
-  const bReservationSheet = ss.getSheetByName(bReservationSheetName);
-  const dReservationSheet = ss.getSheetByName(dReservationSheetName);
-  const usersSheet = ss.getSheetByName("users");
-  const bMenuSheet = ss.getSheetByName("b_menus");
-  const dMenuSheet = ss.getSheetByName("d_menus");
+    if (!bCalendarSheet || !dCalendarSheet) {
+      return {
+        success: false,
+        message: `カレンダーシート ${bCalendarSheetName} または ${dCalendarSheetName} が見つかりません。`
+      };
+    }
   
-  if (!bCalendarSheet || !dCalendarSheet) {
-    return {
-      success: false,
-      message: `カレンダーシート ${bCalendarSheetName} または ${dCalendarSheetName} が見つかりません。`
-    };
-  }
+    if (!bReservationSheet || !dReservationSheet) {
+      return {
+        success: false,
+        message: `予約シート ${bReservationSheetName} または ${dReservationSheetName} が見つかりません。`
+      };
+    }
   
-  if (!bReservationSheet || !dReservationSheet) {
-    return {
-      success: false,
-      message: `予約シート ${bReservationSheetName} または ${dReservationSheetName} が見つかりません。`
-    };
-  }
-  
-  if (!usersSheet) {
-    return {
-      success: false,
-      message: "ユーザーシートが見つかりません。"
-    };
-  }
+    if (!usersSheet) {
+      return {
+        success: false,
+        message: "ユーザーシートが見つかりません。"
+      };
+    }
   
   // データの取得
   const bCalendarData = bCalendarSheet.getDataRange().getValues();
@@ -461,6 +480,11 @@ function getMonthlyReservationCounts(year, month) {
   breakfastReservations.sort((a, b) => a.date.localeCompare(b.date));
   dinnerReservations.sort((a, b) => a.date.localeCompare(b.date));
   
+  console.log('✅ データ処理完了:', {
+    breakfastCount: breakfastReservations.length,
+    dinnerCount: dinnerReservations.length
+  });
+  
   return {
     success: true,
     year: year,
@@ -468,4 +492,15 @@ function getMonthlyReservationCounts(year, month) {
     breakfast: breakfastReservations,
     dinner: dinnerReservations
   };
+  
+  } catch (error) {
+    console.error('❌ getMonthlyReservationCounts エラー:', error);
+    console.error('エラースタック:', error.stack);
+    return {
+      success: false,
+      message: `処理中にエラーが発生しました: ${error.message}`,
+      breakfast: [],
+      dinner: []
+    };
+  }
 }
