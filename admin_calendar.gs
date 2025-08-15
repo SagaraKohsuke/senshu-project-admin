@@ -1,6 +1,50 @@
 function test(){
-  const hoge = getMonthlyReservationCounts(2025, 4);
-  Logger.log(hoge);
+  console.log('=== テスト開始 ===');
+  try {
+    // まずスプレッドシートの整合性をチェック
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    console.log('✅ スプレッドシート接続成功');
+    
+    const yyyyMM = `${2025}${8.toString().padStart(2, "0")}`;
+    console.log('検索対象:', yyyyMM);
+    
+    const bCalendarSheetName = `b_calendar_${yyyyMM}`;
+    const dCalendarSheetName = `d_calendar_${yyyyMM}`;
+    const bReservationSheetName = `b_reservations_${yyyyMM}`;
+    const dReservationSheetName = `d_reservations_${yyyyMM}`;
+    
+    const bCalendarSheet = ss.getSheetByName(bCalendarSheetName);
+    const dCalendarSheet = ss.getSheetByName(dCalendarSheetName);
+    const bReservationSheet = ss.getSheetByName(bReservationSheetName);
+    const dReservationSheet = ss.getSheetByName(dReservationSheetName);
+    
+    console.log('シート存在確認:');
+    console.log(`- ${bCalendarSheetName}: ${bCalendarSheet ? 'EXISTS' : 'NOT FOUND'}`);
+    console.log(`- ${dCalendarSheetName}: ${dCalendarSheet ? 'EXISTS' : 'NOT FOUND'}`);
+    console.log(`- ${bReservationSheetName}: ${bReservationSheet ? 'EXISTS' : 'NOT FOUND'}`);
+    console.log(`- ${dReservationSheetName}: ${dReservationSheet ? 'EXISTS' : 'NOT FOUND'}`);
+    
+    if (bCalendarSheet) {
+      const headers = bCalendarSheet.getRange(1, 1, 1, bCalendarSheet.getLastColumn()).getValues()[0];
+      console.log(`${bCalendarSheetName} ヘッダー:`, headers);
+    }
+    
+    // メイン関数のテスト
+    const result = getMonthlyReservationCounts(2025, 8);
+    console.log('テスト結果:', result);
+    if (result.success) {
+      console.log('✅ 正常に動作しました');
+      console.log(`朝食データ数: ${result.breakfast.length}`);
+      console.log(`夕食データ数: ${result.dinner.length}`);
+    } else {
+      console.log('❌ エラー:', result.message);
+    }
+  } catch (e) {
+    console.log('❌ 例外発生:', e.message);
+    console.log('スタック:', e.stack);
+  }
+  console.log('=== テスト終了 ===');
 }
 
 /**
@@ -179,6 +223,78 @@ function getRecruitmentStops(year, month) {
 }
 
 function getMonthlyReservationCounts(year, month) {
+  const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  
+  const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
+  const bCalendarSheetName = `b_calendar_${yyyyMM}`;
+  const dCalendarSheetName = `d_calendar_${yyyyMM}`;
+  const bReservationSheetName = `b_reservations_${yyyyMM}`;
+  const dReservationSheetName = `d_reservations_${yyyyMM}`;
+  
+  // シートの存在確認
+  const bCalendarSheet = ss.getSheetByName(bCalendarSheetName);
+  const dCalendarSheet = ss.getSheetByName(dCalendarSheetName);
+  const bReservationSheet = ss.getSheetByName(bReservationSheetName);
+  const dReservationSheet = ss.getSheetByName(dReservationSheetName);
+  const usersSheet = ss.getSheetByName("users");
+  const bMenuSheet = ss.getSheetByName("b_menus");
+  const dMenuSheet = ss.getSheetByName("d_menus");
+  
+  if (!bCalendarSheet || !dCalendarSheet) {
+    return {
+      success: false,
+      message: `カレンダーシート ${bCalendarSheetName} または ${dCalendarSheetName} が見つかりません。`
+    };
+  }
+  
+  if (!bReservationSheet || !dReservationSheet) {
+    return {
+      success: false,
+      message: `予約シート ${bReservationSheetName} または ${dReservationSheetName} が見つかりません。`
+    };
+  }
+  
+  if (!usersSheet) {
+    return {
+      success: false,
+      message: "ユーザーシートが見つかりません。"
+    };
+  }
+  
+  // データの取得
+  const bCalendarData = bCalendarSheet.getDataRange().getValues();
+  const dCalendarData = dCalendarSheet.getDataRange().getValues();
+  const bReservationData = bReservationSheet.getDataRange().getValues();
+  const dReservationData = dReservationSheet.getDataRange().getValues();
+  const usersData = usersSheet.getDataRange().getValues();
+  
+  // メニューデータの取得（存在する場合）
+  let bMenuData = [];
+  let dMenuData = [];
+  
+  if (bMenuSheet) {
+    bMenuData = bMenuSheet.getDataRange().getValues();
+  }
+  
+  if (dMenuSheet) {
+    dMenuData = dMenuSheet.getDataRange().getValues();
+  }
+  
+  // ヘッダー行の列インデックスを取得
+  const bCalendarHeaders = bCalendarData[0];
+  const dCalendarHeaders = dCalendarData[0];
+  const bReservationHeaders = bReservationData[0];
+  const dReservationHeaders = dReservationData[0];
+  const usersHeaders = usersData[0];
+  
+  const bCalendarIdIndex = bCalendarHeaders.indexOf("b_calendar_id");
+  const bCalendarDateIndex = bCalendarHeaders.indexOf("date");
+  const bCalendarMenuIdIndex = bCalendarHeaders.indexOf("b_menu_id");
+  
+  const dCalendarIdIndex = dCalendarHeaders.indexOf("d_calendar_id");
+  const dCalendarDateIndex = dCalendarHeaders.indexOf("date");
+  const dCalendarMenuIdIndex = dCalendarHeaders.indexOf("d_menu_id");
   
   const bReservationCalendarIdIndex = bReservationHeaders.indexOf("b_calendar_id");
   const bReservationUserIdIndex = bReservationHeaders.indexOf("user_id");

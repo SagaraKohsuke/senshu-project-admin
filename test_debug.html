@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>デバッグテスト - カレンダーデータ読み込み</title>
+</head>
+<body>
+  <h1>カレンダーデータ読み込みテスト</h1>
+  <div id="result">読み込み中...</div>
+
+  <script>
+    // テスト実行
+    async function testCalendarData() {
+      try {
+        const result = await google.script.run
+          .withSuccessHandler(onSuccess)
+          .withFailureHandler(onFailure)
+          .getMonthlyReservationCounts(2025, 8);
+      } catch (e) {
+        document.getElementById('result').innerHTML = 
+          `<p style="color: red;">❌ エラー: ${e.message}</p>`;
+      }
+    }
+
+    function onSuccess(result) {
+      console.log('✅ 成功:', result);
+      if (result.success) {
+        document.getElementById('result').innerHTML = 
+          `<div style="color: green;">
+            <h3>✅ 正常に動作しました</h3>
+            <p>朝食データ数: ${result.breakfast.length}</p>
+            <p>夕食データ数: ${result.dinner.length}</p>
+            <details>
+              <summary>詳細データ</summary>
+              <pre>${JSON.stringify(result, null, 2)}</pre>
+            </details>
+          </div>`;
+      } else {
+        document.getElementById('result').innerHTML = 
+          `<p style="color: red;">❌ エラー: ${result.message}</p>`;
+      }
+    }
+
+    function onFailure(error) {
+      console.error('❌ 失敗:', error);
+      document.getElementById('result').innerHTML = 
+        `<p style="color: red;">❌ エラー: ${error.message}</p>`;
+    }
+
+    // ページ読み込み時にテスト実行
+    window.onload = function() {
+      testCalendarData();
+    };
+  </script>
+</body>
+</html>
