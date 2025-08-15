@@ -48,6 +48,187 @@ function debugTest(){
 }
 
 /**
+ * 食事原紙のスプレッドシートURLを取得する
+ * @return {Object} 結果とURL
+ */
+function getMealSheetUrl() {
+  try {
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
+    return {
+      success: true,
+      url: ss.getUrl()
+    };
+  } catch (e) {
+    console.error('getMealSheetUrl Error: ' + e.message);
+    return {
+      success: false,
+      message: "スプレッドシートのURL取得に失敗しました: " + e.message
+    };
+  }
+}
+
+/**
+ * 食事原紙を生成・更新する
+ * @param {number} year 年
+ * @param {number} month 月
+ * @return {Object} 結果
+ */
+function generateMealSheet(year, month) {
+  try {
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
+    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const sheetName = "meal_sheet_" + yyyyMM;
+    
+    // 既存シートを削除して新規作成
+    const existingSheet = ss.getSheetByName(sheetName);
+    if (existingSheet) {
+      ss.deleteSheet(existingSheet);
+    }
+    
+    const mealSheet = ss.insertSheet(sheetName);
+    
+    // ユーザーデータを取得
+    const usersSheet = ss.getSheetByName("users");
+    if (!usersSheet) {
+      return {
+        success: false,
+        message: "ユーザーシートが見つかりません。"
+      };
+    }
+    
+    const usersData = usersSheet.getDataRange().getValues();
+    const usersHeaders = usersData[0];
+    const userIdIndex = usersHeaders.indexOf("user_id");
+    const userNameIndex = usersHeaders.indexOf("name");
+    
+    if (userIdIndex === -1 || userNameIndex === -1) {
+      return {
+        success: false,
+        message: "ユーザーシートに必要なカラムが見つかりません。"
+      };
+    }
+    
+    // 月の日数を取得
+    const daysInMonth = new Date(year, month, 0).getDate();
+    
+    // ヘッダー行を作成
+    const headers = ["部屋番号", "名前"];
+    
+    // 日付ヘッダーを追加（朝食・夕食）
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = date.getDay();
+      
+      headers.push(day + "朝");
+      if (dayOfWeek !== 6) { // 土曜日でなければ夕食も追加
+        headers.push(day + "夕");
+      }
+    }
+    
+    // ヘッダーを設定
+    mealSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    mealSheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
+    
+    // 予約データを取得
+    const reservationData = getMonthlyReservationCounts(year, month);
+    if (!reservationData.success) {
+      return {
+        success: false,
+        message: "予約データの取得に失敗しました: " + reservationData.message
+      };
+    }
+    
+    // 日付別予約マップを作成
+    const breakfastMap = {};
+    const dinnerMap = {};
+    
+    for (const item of reservationData.breakfast) {
+      if (item.users && Array.isArray(item.users)) {
+        for (const user of item.users) {
+          const dateKey = item.date;
+          if (!breakfastMap[dateKey]) {
+            breakfastMap[dateKey] = {};
+          }
+          breakfastMap[dateKey][user.userId] = true;
+        }
+      }
+    }
+    
+    for (const item of reservationData.dinner) {
+      if (item.users && Array.isArray(item.users)) {
+        for (const user of item.users) {
+          const dateKey = item.date;
+          if (!dinnerMap[dateKey]) {
+            dinnerMap[dateKey] = {};
+          }
+          dinnerMap[dateKey][user.userId] = true;
+        }
+      }
+    }
+    
+    // ユーザー行を作成
+    const rows = [];
+    for (let i = 1; i < usersData.length; i++) {
+      const userId = usersData[i][userIdIndex];
+      const userName = usersData[i][userNameIndex];
+      
+      if (userId && userName) {
+        const row = [userId, userName];
+        
+        // 各日の予約状況を追加
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = year + "-" + (month < 10 ? "0" + month : month) + "-" + (day < 10 ? "0" + day : day);
+          const date = new Date(year, month - 1, day);
+          const dayOfWeek = date.getDay();
+          
+          // 朝食
+          const hasBreakfast = breakfastMap[dateStr] && breakfastMap[dateStr][userId];
+          row.push(hasBreakfast ? 1 : "");
+          
+          // 夕食（土曜日以外）
+          if (dayOfWeek !== 6) {
+            const hasDinner = dinnerMap[dateStr] && dinnerMap[dateStr][userId];
+            row.push(hasDinner ? 1 : "");
+          }
+        }
+        
+        rows.push(row);
+      }
+    }
+    
+    // データを設定
+    if (rows.length > 0) {
+      mealSheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+    }
+    
+    // 列幅を調整
+    mealSheet.autoResizeColumns(1, headers.length);
+    
+    // 枠線を追加
+    const totalRows = rows.length + 1;
+    mealSheet.getRange(1, 1, totalRows, headers.length).setBorder(true, true, true, true, true, true);
+    
+    return {
+      success: true,
+      message: "食事原紙を生成しました。",
+      sheetName: sheetName,
+      url: ss.getUrl() + "#gid=" + mealSheet.getSheetId()
+    };
+    
+  } catch (e) {
+    console.error('generateMealSheet Error: ' + e.message);
+    return {
+      success: false,
+      message: "食事原紙の生成中にエラーが発生しました: " + e.message
+    };
+  }
+}
+
+/**
  * 指定した日の募集状態を切り替える（is_activeフィールドを使用）
  * @param {string} date 対象日付 (YYYY-MM-DD形式)
  * @param {string} mealType 食事タイプ ("breakfast" または "dinner")
