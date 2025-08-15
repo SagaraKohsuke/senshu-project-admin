@@ -26,18 +26,14 @@
     .meal-item { margin-bottom: 5px; }
     .meal-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
     .meal-count { display: inline-block; background-color: #4285f4; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
-    .menu { font-size: 0.8rem; color: #555; padding-left: 5px; margin-bottom: 5px; }
+    .menu { font-size: 0.8rem !important; color: #555; padding-left: 5px; margin-bottom: 5px; line-height: 1.2; }
     .menu-edit { display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px; }
     .menu-edit-inputs { display: flex; gap: 5px; }
     .menu-edit input { flex: 1; padding: 3px 5px; font-size: 0.8rem; }
     .menu-edit button { background-color: #4285f4; color: white; border: none; border-radius: 3px; padding: 3px 6px; font-size: 0.8rem; cursor: pointer; }
     .menu-history { width: 100%; overflow: hidden; }
     .menu-history-select { width: 100%; padding: 3px; font-size: 0.8rem; border: 1px solid #ddd; border-radius: 3px; }
-    .users-list { font-size: 0.75rem; margin-top: 5px; max-height: 60px; overflow-y: auto; padding: 3px; background-color: #f9f9f9; border-radius: 3px; }
-    .users-list p { margin: 2px 0; }
     .unavailable { font-size: 0.8rem; color: #999; }
-    .deadline-info { font-size: 0.75rem; color: #666; margin-bottom: 5px; }
-    .deadline-passed { font-size: 0.8rem; color: #e74c3c; background-color: #ffeaea; padding: 5px; border-radius: 3px; margin-bottom: 5px; }
     hr { margin: 8px 0; border: none; border-top: 1px dotted #ddd; }
     .month-navigation { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 20px; flex-wrap: wrap; }
     .month-navigation button { background-color: #4285f4; color: white; border: none; border-radius: 4px; padding: 8px 15px; cursor: pointer; font-size: 14px; margin: 5px; }
@@ -196,13 +192,8 @@
                 <div class="menu">
                   メニュー: {{ getBreakfastForDate(date).menuName }}
                 </div>
-                <!-- 締切時間表示 -->
-                <div class="deadline-info" style="font-size: 0.75rem; color: #666; margin-bottom: 5px;">
-                  締切: {{ getBreakfastDeadline(date) }}
-                  <span v-if="isBreakfastDeadlinePassed(date)" style="color: #e74c3c; font-weight: bold;">（締切済）</span>
-                </div>
-                <!-- メニュー編集（締切前のみ） -->
-                <div v-if="!isBreakfastDeadlinePassed(date)" class="menu-edit">
+                <!-- メニュー編集 -->
+                <div class="menu-edit">
                   <div class="menu-history">
                     <select class="menu-history-select" v-model="breakfastMenuInputs[getBreakfastForDate(date).calendarId]" @change="selectBreakfastMenu(getBreakfastForDate(date).calendarId)">
                       <option value="">-- メニューを選択 --</option>
@@ -215,15 +206,6 @@
                     <input type="text" v-model="breakfastMenuInputs[getBreakfastForDate(date).calendarId]" placeholder="メニューを入力" >
                     <button @click="updateMenu('breakfast', getBreakfastForDate(date).calendarId)">変更</button>
                   </div>
-                </div>
-                <!-- 締切後のメッセージ -->
-                <div v-else class="deadline-passed" style="font-size: 0.8rem; color: #e74c3c; background-color: #ffeaea; padding: 5px; border-radius: 3px; margin-bottom: 5px;">
-                  メニュー変更期限を過ぎています
-                </div>
-                <div v-if="getBreakfastForDate(date).count > 0" class="users-list">
-                  <p v-for="(user, idx) in getBreakfastForDate(date).users" :key="'b-' + date + '-' + idx">
-                    {{ user.userId }}号室 - {{ user.userName }}
-                  </p>
                 </div>
               </div>
               <div v-else class="meal-item">
@@ -256,11 +238,6 @@
                     <input type="text" v-model="dinnerMenuInputs[getDinnerForDate(date).calendarId]" placeholder="メニューを入力" >
                     <button @click="updateMenu('dinner', getDinnerForDate(date).calendarId)">変更</button>
                   </div>
-                </div>
-                <div v-if="getDinnerForDate(date).count > 0" class="users-list">
-                  <p v-for="(user, idx) in getDinnerForDate(date).users" :key="'d-' + date + '-' + idx">
-                    {{ user.userId }}号室 - {{ user.userName }}
-                  </p>
                 </div>
               </div>
               <div v-else-if="isSaturday(date)" class="meal-item">
@@ -452,15 +429,6 @@
             return;
           }
           
-          // 朝食の場合、フロントエンドでも締切チェック
-          if (mealType === 'breakfast') {
-            const targetReservation = this.breakfastReservations.find(item => item.calendarId == calendarId);
-            if (targetReservation && this.isBreakfastDeadlinePassed(targetReservation.date)) {
-              alert('朝食のメニュー変更期限（前日14時）を過ぎているため、変更できません。');
-              return;
-            }
-          }
-          
           this.calendarLoading = true;
           google.script.run
             .withSuccessHandler(response => {
@@ -556,29 +524,6 @@
         // --- ここまで ---
         getBreakfastForDate: function(dateStr) {
           return this.breakfastReservations.find(item => item.date === dateStr);
-        },
-        // 朝食の締切時間（前日14時）を過ぎているかチェック
-        isBreakfastDeadlinePassed: function(dateStr) {
-          const mealDate = new Date(dateStr);
-          const now = new Date();
-          
-          // 前日の14時を計算
-          const deadlineDate = new Date(mealDate);
-          deadlineDate.setDate(deadlineDate.getDate() - 1);
-          deadlineDate.setHours(14, 0, 0, 0);
-          
-          return now > deadlineDate;
-        },
-        // 朝食の締切時間を取得（表示用）
-        getBreakfastDeadline: function(dateStr) {
-          const mealDate = new Date(dateStr);
-          const deadlineDate = new Date(mealDate);
-          deadlineDate.setDate(deadlineDate.getDate() - 1);
-          deadlineDate.setHours(14, 0, 0, 0);
-          
-          const month = deadlineDate.getMonth() + 1;
-          const day = deadlineDate.getDate();
-          return `${month}/${day} 14:00`;
         },
         getDinnerForDate: function(dateStr) {
           return this.dinnerReservations.find(item => item.date === dateStr);
