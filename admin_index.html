@@ -7,80 +7,130 @@
   <title>朝夕食予約システム - 管理画面</title>
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <style>
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
-    .container { max-width: 1000px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    h1 { color: #333; margin-top: 0; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 10px; background-color: #f5f5f5; }
+    .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { color: #333; margin-top: 0; font-size: 1.5rem; }
     h2.month-header { color: #2c3e50; text-align: center; margin: 20px 0 15px; }
     .form-group { margin-bottom: 15px; }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
-    select, input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background-color: white; font-size: 16px; }
+    select, input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; background-color: white; font-size: 16px; box-sizing: border-box; }
     .loading { display: flex; justify-content: center; padding: 20px; color: #666; }
-    /* カレンダースタイル */
-    .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 20px; }
-    .weekday-header { text-align: center; font-weight: bold; padding: 8px; background-color: #f0f0f0; border-radius: 4px; }
-    .calendar-cell { min-height: 120px; border: 1px solid #ddd; border-radius: 4px; padding: 5px; background-color: white; }
+    
+    /* カレンダースタイル - スマホ最適化 */
+    .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 20px; }
+    .weekday-header { text-align: center; font-weight: bold; padding: 8px 4px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9rem; }
+    .calendar-cell { min-height: 140px; border: 1px solid #ddd; border-radius: 4px; padding: 4px; background-color: white; overflow: hidden; }
     .calendar-cell.today { background-color: #fff8e1; border-color: #ffca28; }
     .empty-cell { background-color: #f9f9f9; }
-    .date-header { font-weight: bold; text-align: right; border-bottom: 1px solid #eee; padding-bottom: 3px; margin-bottom: 5px; }
-    .meal-section { font-size: 0.85rem; }
-    .meal-item { margin-bottom: 5px; }
-    .meal-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-    .meal-count { display: inline-block; background-color: #4285f4; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
-    .menu { font-size: 0.8rem !important; color: #555; padding-left: 5px; margin-bottom: 5px; line-height: 1.2; }
-    .menu-edit { display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px; }
-    .menu-edit-inputs { display: flex; gap: 5px; }
-    .menu-edit input { flex: 1; padding: 3px 5px; font-size: 0.8rem; }
-    .menu-edit button { background-color: #4285f4; color: white; border: none; border-radius: 3px; padding: 3px 6px; font-size: 0.8rem; cursor: pointer; }
-    .recruitment-control { margin-top: 5px; text-align: center; }
-    .stop-button { padding: 4px 8px; font-size: 11px; border: none; border-radius: 3px; cursor: pointer; background-color: #dc3545; color: white; }
-    .stop-button:hover { background-color: #c82333; }
-    .stop-button.stopped { background-color: #28a745; }
-    .stop-button.stopped:hover { background-color: #218838; }
-    .recruitment-control { margin-top: 5px; text-align: center; }
-    .stop-button { padding: 4px 8px; font-size: 11px; border: none; border-radius: 3px; cursor: pointer; background-color: #dc3545; color: white; }
+    .date-header { font-weight: bold; text-align: right; border-bottom: 1px solid #eee; padding-bottom: 3px; margin-bottom: 5px; font-size: 0.9rem; }
+    .meal-section { font-size: 0.75rem; }
+    .meal-item { margin-bottom: 4px; }
+    .meal-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+    .meal-count { display: inline-block; background-color: #4285f4; color: white; padding: 1px 6px; border-radius: 8px; font-size: 0.7rem; font-weight: bold; }
+    .menu { font-size: 0.7rem !important; color: #555; padding-left: 3px; margin-bottom: 3px; line-height: 1.1; }
+    .menu-edit { display: flex; flex-direction: column; gap: 3px; margin-bottom: 4px; }
+    .menu-edit-inputs { display: flex; gap: 3px; }
+    .menu-edit input { flex: 1; padding: 4px; font-size: 0.7rem; min-height: 20px; }
+    .menu-edit button { background-color: #4285f4; color: white; border: none; border-radius: 3px; padding: 4px 6px; font-size: 0.7rem; cursor: pointer; white-space: nowrap; }
+    .recruitment-control { margin-top: 4px; text-align: center; }
+    .stop-button { padding: 3px 6px; font-size: 0.65rem; border: none; border-radius: 3px; cursor: pointer; background-color: #dc3545; color: white; }
     .stop-button:hover { background-color: #c82333; }
     .stop-button.stopped { background-color: #28a745; }
     .stop-button.stopped:hover { background-color: #218838; }
     .menu-history { width: 100%; overflow: hidden; }
-    .menu-history-select { width: 100%; padding: 3px; font-size: 0.8rem; border: 1px solid #ddd; border-radius: 3px; }
-    .unavailable { font-size: 0.8rem; color: #999; }
-    hr { margin: 8px 0; border: none; border-top: 1px dotted #ddd; }
-    .month-navigation { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 20px; flex-wrap: wrap; }
-    .month-navigation button { background-color: #4285f4; color: white; border: none; border-radius: 4px; padding: 8px 15px; cursor: pointer; font-size: 14px; margin: 5px; }
+    .menu-history-select { width: 100%; padding: 2px; font-size: 0.7rem; border: 1px solid #ddd; border-radius: 3px; }
+    .unavailable { font-size: 0.7rem; color: #999; }
+    hr { margin: 6px 0; border: none; border-top: 1px dotted #ddd; }
+    
+    /* ナビゲーション - スマホ対応 */
+    .month-navigation { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 20px; flex-wrap: wrap; gap: 10px; }
+    .month-navigation button { background-color: #4285f4; color: white; border: none; border-radius: 4px; padding: 10px 15px; cursor: pointer; font-size: 14px; min-width: 120px; }
     .month-navigation button:disabled { background-color: #b0bec5; cursor: not-allowed; }
-    .month-navigation h3 { margin: 5px 10px; }
+    .month-navigation h3 { margin: 0 10px; font-size: 1.1rem; }
+    
+    /* ヘッダー - スマホ対応 */
     .calendar-container { margin-top: 20px; }
-    .admin-header { background-color: #2c3e50; color: white; padding: 10px; margin: -20px -20px 20px -20px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .admin-header { background-color: #2c3e50; color: white; padding: 15px; margin: -15px -15px 20px -15px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     .admin-header h1 { color: white; margin: 0; }
-    .admin-badge { background-color: #e74c3c; color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.8rem; font-weight: bold; }
+    .admin-badge { background-color: #e74c3c; color: white; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    
+    /* サマリーセクション - スマホ対応 */
     .summary-section { background-color: #ecf0f1; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
     .summary-title { font-weight: bold; margin-bottom: 15px; text-align: center; font-size: 1.1rem; }
-    .reservation-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+    .reservation-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .reservation-card { background-color: white; padding: 12px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .reservation-card-header { font-weight: bold; margin-bottom: 8px; text-align: center; padding: 5px; border-radius: 3px; color: white; }
+    .reservation-card-header { font-weight: bold; margin-bottom: 8px; text-align: center; padding: 8px; border-radius: 3px; color: white; font-size: 0.9rem; }
     .reservation-card-header.today-breakfast { background-color: #f39c12; }
     .reservation-card-header.today-dinner { background-color: #e74c3c; }
     .reservation-card-header.tomorrow-breakfast { background-color: #3498db; }
     .reservation-card-header.tomorrow-dinner { background-color: #9b59b6; }
-    .reservation-count { font-size: 1.2rem; font-weight: bold; text-align: center; margin: 8px 0; }
+    .reservation-count { font-size: 1.3rem; font-weight: bold; text-align: center; margin: 10px 0; }
     .reservation-users { overflow-y: visible; max-height: none; }
-    .reservation-users p { margin: 3px 0; font-size: 0.85rem; padding: 2px 5px; background-color: #f8f9fa; border-radius: 2px; }
-    .no-reservations { text-align: center; color: #7f8c8d; font-style: italic; padding: 10px; }
+    .reservation-users p { margin: 3px 0; font-size: 0.8rem; padding: 3px 6px; background-color: #f8f9fa; border-radius: 3px; }
+    .no-reservations { text-align: center; color: #7f8c8d; font-style: italic; padding: 12px; font-size: 0.9rem; }
     .total-count { background-color: #3498db; color: white; padding: 2px 8px; border-radius: 3px; }
-    /* モバイル対応 */
+    
+    /* タブレット対応 */
+    @media (max-width: 1024px) {
+      .container { padding: 12px; }
+      .calendar { gap: 1px; }
+      .calendar-cell { min-height: 120px; padding: 3px; }
+      .meal-section { font-size: 0.7rem; }
+    }
+    
+    /* スマートフォン対応 */
     @media (max-width: 768px) {
-      .reservation-grid { grid-template-columns: repeat(2, 1fr); }
+      body { padding: 5px; }
+      .container { padding: 10px; }
+      .admin-header { padding: 12px; margin: -10px -10px 15px -10px; }
+      .admin-header h1 { font-size: 1.2rem; }
+      .reservation-grid { grid-template-columns: 1fr; gap: 8px; }
+      .month-navigation { flex-direction: column; gap: 8px; }
+      .month-navigation button { min-width: 100px; padding: 8px 12px; }
+      .calendar { grid-template-columns: repeat(7, 1fr); gap: 1px; }
+      .calendar-cell { min-height: 100px; padding: 2px; }
+      .weekday-header { padding: 6px 2px; font-size: 0.8rem; }
+      .date-header { font-size: 0.8rem; }
+      .meal-section { font-size: 0.65rem; }
+      .meal-count { font-size: 0.6rem; padding: 1px 4px; }
+      .menu { font-size: 0.6rem !important; }
+      .menu-edit input, .menu-edit button, .menu-history-select { font-size: 0.6rem; padding: 2px; }
+      .stop-button { font-size: 0.6rem; padding: 2px 4px; }
+      .summary-title { font-size: 1rem; }
+      .reservation-count { font-size: 1.1rem; }
+      .reservation-users p { font-size: 0.75rem; }
     }
+    
+    /* 小さなスマートフォン対応 */
     @media (max-width: 480px) {
-      .reservation-grid { grid-template-columns: 1fr; }
+      body { padding: 2px; }
+      .container { padding: 8px; }
+      .admin-header { padding: 10px; margin: -8px -8px 12px -8px; }
+      .admin-header h1 { font-size: 1.1rem; }
+      .month-navigation h3 { font-size: 1rem; }
+      .calendar-cell { min-height: 85px; padding: 1px; }
+      .weekday-header { padding: 4px 1px; font-size: 0.7rem; }
+      .date-header { font-size: 0.7rem; }
+      .meal-section { font-size: 0.6rem; }
+      .meal-count { font-size: 0.55rem; }
+      .menu { font-size: 0.55rem !important; }
+      .menu-edit input, .menu-edit button, .menu-history-select { font-size: 0.55rem; padding: 1px; }
+      .stop-button { font-size: 0.55rem; padding: 1px 3px; }
+      .reservation-users p { font-size: 0.7rem; padding: 2px 4px; }
     }
-    /* モバイル対応 */
-    @media (max-width: 768px) {
+    
+    /* 横向きスマートフォン対応 */
+    @media (max-width: 768px) and (orientation: landscape) {
       .reservation-grid { grid-template-columns: repeat(2, 1fr); }
-      .month-navigation { flex-direction: column; gap: 10px; }
+      .month-navigation { flex-direction: row; }
+      .calendar-cell { min-height: 80px; }
     }
-    @media (max-width: 480px) {
-      .reservation-grid { grid-template-columns: 1fr; }
+    
+    /* タッチデバイス用のボタン調整 */
+    @media (pointer: coarse) {
+      .menu-edit button, .stop-button { min-height: 28px; min-width: 40px; }
+      select, input { min-height: 40px; }
+      .month-navigation button { min-height: 40px; }
     }
   </style>
 </head>
