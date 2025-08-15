@@ -48,11 +48,33 @@
     .admin-header h1 { color: white; margin: 0; }
     .admin-badge { background-color: #e74c3c; color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.8rem; font-weight: bold; }
     .summary-section { background-color: #ecf0f1; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-    .summary-title { font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .summary-title { font-weight: bold; margin-bottom: 15px; text-align: center; font-size: 1.1rem; }
+    .reservation-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+    .reservation-card { background-color: white; padding: 12px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .reservation-card-header { font-weight: bold; margin-bottom: 8px; text-align: center; padding: 5px; border-radius: 3px; color: white; }
+    .reservation-card-header.today-breakfast { background-color: #f39c12; }
+    .reservation-card-header.today-dinner { background-color: #e74c3c; }
+    .reservation-card-header.tomorrow-breakfast { background-color: #3498db; }
+    .reservation-card-header.tomorrow-dinner { background-color: #9b59b6; }
+    .reservation-count { font-size: 1.2rem; font-weight: bold; text-align: center; margin: 8px 0; }
+    .reservation-users { max-height: 120px; overflow-y: auto; }
+    .reservation-users p { margin: 3px 0; font-size: 0.85rem; padding: 2px 5px; background-color: #f8f9fa; border-radius: 2px; }
+    .no-reservations { text-align: center; color: #7f8c8d; font-style: italic; padding: 10px; }
     .total-count { background-color: #3498db; color: white; padding: 2px 8px; border-radius: 3px; }
     /* モバイル対応 */
-    @media (max-width: 600px) {
+    @media (max-width: 768px) {
+      .reservation-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .reservation-grid { grid-template-columns: 1fr; }
+    }
+    /* モバイル対応 */
+    @media (max-width: 768px) {
+      .reservation-grid { grid-template-columns: repeat(2, 1fr); }
       .month-navigation { flex-direction: column; gap: 10px; }
+    }
+    @media (max-width: 480px) {
+      .reservation-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -77,29 +99,83 @@
 
       <div class="summary-section" v-if="isCurrentMonth">
         <div class="summary-title">
-          <span>本日の予約状況</span>
-          <span class="total-count">朝食: {{ todayBreakfastCount }}食 / 夕食: {{ todayDinnerCount }}食</span>
+          本日・明日の予約状況
         </div>
-        <div v-if="todayBreakfastCount > 0 || todayDinnerCount > 0">
-          <div v-if="todayBreakfastCount > 0">
-            <strong>朝食予約者:</strong>
-            <div class="users-list" style="max-height: none;">
-              <p v-for="(user, idx) in todayBreakfastUsers" :key="'tb-' + idx">
+        <div class="reservation-grid">
+          <!-- 今日の朝食 -->
+          <div class="reservation-card">
+            <div class="reservation-card-header today-breakfast">
+              今日の朝食
+            </div>
+            <div class="reservation-count">
+              {{ todayBreakfastCount }}食
+            </div>
+            <div v-if="todayBreakfastCount > 0" class="reservation-users">
+              <p v-for="(user, idx) in todayBreakfastUsers" :key="'today-b-' + idx">
                 {{ user.userId }}号室 - {{ user.userName }}
               </p>
             </div>
+            <div v-else class="no-reservations">
+              予約なし
+            </div>
           </div>
-          <div v-if="todayDinnerCount > 0" style="margin-top: 10px;">
-            <strong>夕食予約者:</strong>
-            <div class="users-list" style="max-height: none;">
-              <p v-for="(user, idx) in todayDinnerUsers" :key="'td-' + idx">
+
+          <!-- 今日の夕食 -->
+          <div class="reservation-card">
+            <div class="reservation-card-header today-dinner">
+              今日の夕食
+            </div>
+            <div class="reservation-count">
+              {{ todayDinnerCount }}食
+            </div>
+            <div v-if="todayDinnerCount > 0" class="reservation-users">
+              <p v-for="(user, idx) in todayDinnerUsers" :key="'today-d-' + idx">
                 {{ user.userId }}号室 - {{ user.userName }}
               </p>
             </div>
+            <div v-else class="no-reservations">
+              予約なし
+            </div>
           </div>
-        </div>
-        <div v-else>
-          <p>本日の予約はありません。</p>
+
+          <!-- 明日の朝食 -->
+          <div class="reservation-card">
+            <div class="reservation-card-header tomorrow-breakfast">
+              明日の朝食
+            </div>
+            <div class="reservation-count">
+              {{ tomorrowBreakfastCount }}食
+            </div>
+            <div v-if="tomorrowBreakfastCount > 0" class="reservation-users">
+              <p v-for="(user, idx) in tomorrowBreakfastUsers" :key="'tomorrow-b-' + idx">
+                {{ user.userId }}号室 - {{ user.userName }}
+              </p>
+            </div>
+            <div v-else class="no-reservations">
+              予約なし
+            </div>
+          </div>
+
+          <!-- 明日の夕食 -->
+          <div class="reservation-card">
+            <div class="reservation-card-header tomorrow-dinner">
+              明日の夕食
+            </div>
+            <div v-if="!isTomorrowSaturday" class="reservation-count">
+              {{ tomorrowDinnerCount }}食
+            </div>
+            <div v-if="!isTomorrowSaturday && tomorrowDinnerCount > 0" class="reservation-users">
+              <p v-for="(user, idx) in tomorrowDinnerUsers" :key="'tomorrow-d-' + idx">
+                {{ user.userId }}号室 - {{ user.userName }}
+              </p>
+            </div>
+            <div v-if="!isTomorrowSaturday && tomorrowDinnerCount === 0" class="no-reservations">
+              予約なし
+            </div>
+            <div v-if="isTomorrowSaturday" class="no-reservations">
+              土曜日のため提供なし
+            </div>
+          </div>
         </div>
       </div>
 
@@ -260,6 +336,65 @@
           const todayStr = this.formatDate(today);
           const dinner = this.getDinnerForDate(todayStr);
           return dinner ? dinner.users : [];
+        },
+        // 明日の予約データ
+        tomorrowBreakfastCount: function() {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const tomorrowStr = this.formatDate(tomorrow);
+          
+          // 明日が翌月の場合の処理
+          if (tomorrow.getMonth() + 1 !== this.currentMonth || tomorrow.getFullYear() !== this.currentYear) {
+            return 0;
+          }
+          
+          const breakfast = this.getBreakfastForDate(tomorrowStr);
+          return breakfast ? breakfast.count : 0;
+        },
+        tomorrowDinnerCount: function() {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const tomorrowStr = this.formatDate(tomorrow);
+          
+          // 明日が翌月の場合の処理
+          if (tomorrow.getMonth() + 1 !== this.currentMonth || tomorrow.getFullYear() !== this.currentYear) {
+            return 0;
+          }
+          
+          const dinner = this.getDinnerForDate(tomorrowStr);
+          return dinner ? dinner.count : 0;
+        },
+        tomorrowBreakfastUsers: function() {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const tomorrowStr = this.formatDate(tomorrow);
+          
+          // 明日が翌月の場合の処理
+          if (tomorrow.getMonth() + 1 !== this.currentMonth || tomorrow.getFullYear() !== this.currentYear) {
+            return [];
+          }
+          
+          const breakfast = this.getBreakfastForDate(tomorrowStr);
+          return breakfast ? breakfast.users : [];
+        },
+        tomorrowDinnerUsers: function() {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const tomorrowStr = this.formatDate(tomorrow);
+          
+          // 明日が翌月の場合の処理
+          if (tomorrow.getMonth() + 1 !== this.currentMonth || tomorrow.getFullYear() !== this.currentYear) {
+            return [];
+          }
+          
+          const dinner = this.getDinnerForDate(tomorrowStr);
+          return dinner ? dinner.users : [];
+        },
+        // 明日が土曜日かどうか
+        isTomorrowSaturday: function() {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return tomorrow.getDay() === 6;
         }
       },
       methods: {
