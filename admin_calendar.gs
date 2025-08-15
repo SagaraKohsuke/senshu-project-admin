@@ -276,132 +276,114 @@ function generateMonthlyMealSheet(year, month) {
     const mealSs = SpreadsheetApp.openById(mealSheetId);
     const dataSs = SpreadsheetApp.openById(dataSheetId);
     
-    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    console.log('食事原紙テンプレート更新開始:', {
+      year: year,
+      month: month
+    });
     
-    // 食事原紙シートを取得
-    const mealSheet = mealSs.getSheetByName("食事原紙");
-    if (!mealSheet) {
+    // 食事原紙のテンプレートシートを取得
+    const templateSheet = mealSs.getSheetByName("食事原紙");
+    if (!templateSheet) {
       return {
         success: false,
-        message: "食事原紙シートが見つかりません。"
-      };
-    }
-    
-    // ユーザーデータを取得
-    const usersSheet = dataSs.getSheetByName("users");
-    if (!usersSheet) {
-      return {
-        success: false,
-        message: "ユーザーシートが見つかりません。"
-      };
-    }
-    
-    const usersData = usersSheet.getDataRange().getValues();
-    const usersHeaders = usersData[0];
-    const userIdIndex = usersHeaders.indexOf("user_id");
-    const userNameIndex = usersHeaders.indexOf("name");
-    
-    if (userIdIndex === -1 || userNameIndex === -1) {
-      return {
-        success: false,
-        message: "ユーザーシートに必要なカラムが見つかりません。"
+        message: "食事原紙テンプレートシートが見つかりません。"
       };
     }
     
     // 月の日数を取得
     const daysInMonth = new Date(year, month, 0).getDate();
+    const dayOfWeekNames = ['日', '月', '火', '水', '木', '金', '土'];
     
-    // 既存データを全クリア（3行目以降、C列以降）
-    const lastRow = mealSheet.getLastRow();
-    const lastCol = mealSheet.getLastColumn();
-    if (lastRow >= 3 && lastCol >= 3) {
-      mealSheet.getRange(3, 3, lastRow - 2, lastCol - 2).clearContent();
-    }
+    // 1. タイトル行の年月を更新（A1セル）
+    const titleCell = templateSheet.getRange(1, 1);
+    titleCell.setValue(year + "年" + month + "月度食事申し込み表　前半");
     
-    // ヘッダー行を更新（日付部分）
-    const headerRow = 2;
-    let currentCol = 3; // C列から開始（A:部屋番号、B:名前の後）
-    
-    // 既存のヘッダー列をクリア（C列以降）
-    if (lastCol >= 3) {
-      mealSheet.getRange(1, 3, 2, lastCol - 2).clearContent();
-    }
-    
-    // 月・年をタイトルに設定
-    mealSheet.getRange(1, 1).setValue(year + "年" + month + "月 食事原紙");
-    
-    // 日付ヘッダーを設定
-    for (let day = 1; day <= daysInMonth; day++) {
+    // 2. 前半部分（1-16日）のヘッダー更新
+    // 行2: 日付番号、行3: 曜日
+    for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
       const date = new Date(year, month - 1, day);
-      const dayOfWeek = date.getDay();
-      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const dayOfWeek = dayOfWeekNames[date.getDay()];
       
-      // 朝食列
-      mealSheet.getRange(headerRow, currentCol).setValue(day + '日(' + dayNames[dayOfWeek] + ')朝');
-      currentCol++;
+      // 日付と曜日の列位置: 1日→C列(3),D列(4), 2日→E列(5),F列(6)...
+      const dayCol = 3 + (day - 1) * 2; // 日付列
+      const dayNameCol = dayCol + 1; // 曜日列
       
-      // 夕食列（土曜日以外）
-      if (dayOfWeek !== 6) {
-        mealSheet.getRange(headerRow, currentCol).setValue(day + '日(' + dayNames[dayOfWeek] + ')夕');
-        currentCol++;
-      }
+      templateSheet.getRange(2, dayCol).setValue(day);
+      templateSheet.getRange(2, dayNameCol).setValue(dayOfWeek);
     }
     
-    // ユーザー行を作成（3行目から開始）
-    let currentRow = 3;
-    for (let i = 1; i < usersData.length; i++) {
-      const userId = usersData[i][userIdIndex];
-      const userName = usersData[i][userNameIndex];
+    // 3. 後半部分のタイトル更新（行36付近）
+    templateSheet.getRange(36, 1).setValue(year + "年" + month + "月度食事申し込み表　後半");
+    
+    // 4. 後半部分（17-31日）のヘッダー更新（行38）
+    const backHeaderRow = 38;
+    for (let day = 17; day <= daysInMonth; day++) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = dayOfWeekNames[date.getDay()];
       
-      if (userId && userName) {
-        // 部屋番号と名前を設定
-        mealSheet.getRange(currentRow, 1).setValue(userId);
-        mealSheet.getRange(currentRow, 2).setValue(userName);
+      // 17日→C列, 18日→E列...
+      const dayCol = 3 + (day - 17) * 2;
+      const dayNameCol = dayCol + 1;
+      
+      templateSheet.getRange(backHeaderRow, dayCol).setValue(day);
+      templateSheet.getRange(backHeaderRow, dayNameCol).setValue(dayOfWeek);
+    }
+    
+    // 5. 予約データのクリア（朝食・夕食の数値セルのみ）
+    // 前半部分のデータクリア（行5-35、列C以降）
+    for (let row = 5; row <= 35; row++) {
+      for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
+        const date = new Date(year, month - 1, day);
+        const breakfastCol = 3 + (day - 1) * 2; // 朝食列
+        const dinnerCol = breakfastCol + 1; // 夕食列
         
-        // 各日のセルを初期化（空白）
-        currentCol = 3;
-        for (let day = 1; day <= daysInMonth; day++) {
-          const date = new Date(year, month - 1, day);
-          const dayOfWeek = date.getDay();
-          
-          // 朝食セル
-          mealSheet.getRange(currentRow, currentCol).setValue("");
-          currentCol++;
-          
-          // 夕食セル（土曜日以外）
-          if (dayOfWeek !== 6) {
-            mealSheet.getRange(currentRow, currentCol).setValue("");
-            currentCol++;
-          }
+        // 朝食セルクリア
+        const breakfastCell = templateSheet.getRange(row, breakfastCol);
+        const breakfastValue = breakfastCell.getValue();
+        if (typeof breakfastValue === 'number' || breakfastValue === 1) {
+          breakfastCell.setValue('');
         }
         
-        currentRow++;
+        // 夕食セル（土曜日以外）クリア
+        if (date.getDay() !== 6) { // 土曜日でない場合
+          const dinnerCell = templateSheet.getRange(row, dinnerCol);
+          const dinnerValue = dinnerCell.getValue();
+          if (typeof dinnerValue === 'number' || dinnerValue === 1) {
+            dinnerCell.setValue('');
+          }
+        }
       }
     }
     
-    // 列幅を調整
-    mealSheet.autoResizeColumns(1, currentCol - 1);
-    
-    // 枠線を追加
-    const totalRows = currentRow - 1;
-    const totalCols = currentCol - 1;
-    mealSheet.getRange(2, 1, totalRows - 1, totalCols).setBorder(true, true, true, true, true, true);
-    
-    // ヘッダー行を強調
-    mealSheet.getRange(2, 1, 1, totalCols).setBackground('#e6f3ff');
-    mealSheet.getRange(2, 1, 1, totalCols).setFontWeight('bold');
-    
-    // タイトル行を強調
-    mealSheet.getRange(1, 1).setFontSize(14);
-    mealSheet.getRange(1, 1).setFontWeight('bold');
+    // 後半部分のデータクリア（行40以降、列C以降）
+    for (let row = 40; row <= 75; row++) {
+      for (let day = 17; day <= daysInMonth; day++) {
+        const date = new Date(year, month - 1, day);
+        const breakfastCol = 3 + (day - 17) * 2; // 朝食列
+        const dinnerCol = breakfastCol + 1; // 夕食列
+        
+        // 朝食セルクリア
+        const breakfastCell = templateSheet.getRange(row, breakfastCol);
+        const breakfastValue = breakfastCell.getValue();
+        if (typeof breakfastValue === 'number' || breakfastValue === 1) {
+          breakfastCell.setValue('');
+        }
+        
+        // 夕食セル（土曜日以外）クリア
+        if (date.getDay() !== 6) { // 土曜日でない場合
+          const dinnerCell = templateSheet.getRange(row, dinnerCol);
+          const dinnerValue = dinnerCell.getValue();
+          if (typeof dinnerValue === 'number' || dinnerValue === 1) {
+            dinnerCell.setValue('');
+          }
+        }
+      }
+    }
     
     return {
       success: true,
-      message: "食事原紙を更新しました。",
-      sheetName: "食事原紙",
-      year: year,
-      month: month,
-      url: mealSs.getUrl() + "#gid=" + mealSheet.getSheetId()
+      message: year + "年" + month + "月の食事原紙テンプレートを更新しました。",
+      url: mealSs.getUrl()
     };
     
   } catch (e) {
@@ -449,7 +431,8 @@ function testCreateDailyMealRecord() {
 }
 
 /**
- * 指定日の朝食・夕食の記録を食事原紙に書き込む
+ * 指定日の朝食・夕食の記録を食事原紙に書き込む（最適化版）
+ * CSVテンプレート構造に合わせた実装
  * @param {number} year 年
  * @param {number} month 月
  * @param {number} day 日
@@ -469,6 +452,7 @@ function createDailyMealRecord(year, month, day) {
     
     console.log('食事原紙記録作成対象:', {
       dateStr: dateStr,
+      day: day,
       dayOfWeek: dayOfWeek
     });
     
@@ -490,90 +474,110 @@ function createDailyMealRecord(year, month, day) {
       };
     }
     
-    // ヘッダー行から日付列を特定
-    const headerRow = 2;
-    const lastCol = mealSheet.getLastColumn();
-    const headers = mealSheet.getRange(headerRow, 1, 1, lastCol).getValues()[0];
-    
+    // CSVテンプレート構造に基づく列位置計算
     let breakfastCol = -1;
     let dinnerCol = -1;
+    let targetRowStart = -1;
     
-    // 該当日の朝食・夕食列を検索
-    for (let col = 0; col < headers.length; col++) {
-      const header = headers[col];
-      if (typeof header === 'string') {
-        if (header.includes(day + '日') && header.includes('朝')) {
-          breakfastCol = col + 1; // 1-based index
-        }
-        if (header.includes(day + '日') && header.includes('夕')) {
-          dinnerCol = col + 1; // 1-based index
-        }
-      }
+    if (day <= 16) {
+      // 前半部分（1-16日）
+      breakfastCol = 3 + (day - 1) * 2; // 朝食列: 1日→C(3), 2日→E(5)...
+      dinnerCol = breakfastCol + 1; // 夕食列: 1日→D(4), 2日→F(6)...
+      targetRowStart = 5; // 前半部分の開始行
+    } else {
+      // 後半部分（17-31日）
+      breakfastCol = 3 + (day - 17) * 2; // 朝食列: 17日→C(3), 18日→E(5)...
+      dinnerCol = breakfastCol + 1; // 夕食列: 17日→D(4), 18日→F(6)...
+      targetRowStart = 40; // 後半部分の開始行
     }
     
-    console.log('列位置:', {
+    console.log('列位置計算結果:', {
+      day: day,
       breakfastCol: breakfastCol,
-      dinnerCol: dinnerCol
+      dinnerCol: dinnerCol,
+      targetRowStart: targetRowStart,
+      isSaturday: dayOfWeek === 6
     });
     
-    if (breakfastCol === -1) {
-      return {
-        success: false,
-        message: day + "日の朝食列が見つかりません。"
-      };
-    }
-    
-    // ユーザー行を特定するためのマップ作成
-    const lastRow = mealSheet.getLastRow();
+    // ユーザー行マッピングを作成（A列の部屋番号を基準）
     const userRows = {};
+    const maxRow = targetRowStart + 30; // 想定される最大行数
     
-    for (let row = 3; row <= lastRow; row++) {
+    for (let row = targetRowStart; row <= maxRow; row++) {
       const userId = mealSheet.getRange(row, 1).getValue();
-      if (userId) {
-        userRows[userId] = row;
+      if (userId && typeof userId !== 'undefined' && userId !== '') {
+        userRows[userId.toString()] = row;
       }
     }
     
+    console.log('ユーザー行マッピング作成完了:', {
+      userCount: Object.keys(userRows).length,
+      userIds: Object.keys(userRows).slice(0, 5) // 最初の5つのユーザーIDを表示
+    });
+    
     let recordsCreated = 0;
+    const createdRecords = [];
     
     // 朝食の記録を作成
     const breakfastData = reservationData.breakfast.find(item => item.date === dateStr);
     if (breakfastData && breakfastData.users && Array.isArray(breakfastData.users)) {
       for (const user of breakfastData.users) {
-        const userRow = userRows[user.userId];
+        const userRow = userRows[user.userId.toString()];
         if (userRow) {
           mealSheet.getRange(userRow, breakfastCol).setValue(1);
           recordsCreated++;
+          createdRecords.push({
+            userId: user.userId,
+            userName: user.userName,
+            mealType: 'breakfast',
+            row: userRow,
+            col: breakfastCol
+          });
+        } else {
+          console.log('朝食：ユーザー行が見つかりません:', user.userId);
         }
       }
     }
     
     // 夕食の記録を作成（土曜日以外）
-    if (dayOfWeek !== 6 && dinnerCol !== -1) {
+    if (dayOfWeek !== 6) {
       const dinnerData = reservationData.dinner.find(item => item.date === dateStr);
       if (dinnerData && dinnerData.users && Array.isArray(dinnerData.users)) {
         for (const user of dinnerData.users) {
-          const userRow = userRows[user.userId];
+          const userRow = userRows[user.userId.toString()];
           if (userRow) {
             mealSheet.getRange(userRow, dinnerCol).setValue(1);
             recordsCreated++;
+            createdRecords.push({
+              userId: user.userId,
+              userName: user.userName,
+              mealType: 'dinner',
+              row: userRow,
+              col: dinnerCol
+            });
+          } else {
+            console.log('夕食：ユーザー行が見つかりません:', user.userId);
           }
         }
       }
     }
     
     console.log('食事原紙記録作成完了:', {
+      date: dateStr,
       totalRecords: recordsCreated,
-      breakfastUsers: breakfastData ? breakfastData.users.length : 0,
-      dinnerUsers: (dayOfWeek !== 6 && reservationData.dinner.find(item => item.date === dateStr)) ? 
-        reservationData.dinner.find(item => item.date === dateStr).users.length : 0
+      breakfastCount: breakfastData ? breakfastData.users.length : 0,
+      dinnerCount: (dayOfWeek !== 6 && reservationData.dinner.find(item => item.date === dateStr)) ? 
+        reservationData.dinner.find(item => item.date === dateStr).users.length : 0,
+      recordDetails: createdRecords
     });
     
     return {
       success: true,
       message: "食事原紙に記録を作成しました。",
       date: dateStr,
+      day: day,
       recordsCreated: recordsCreated,
+      records: createdRecords,
       sheetName: "食事原紙"
     };
     
