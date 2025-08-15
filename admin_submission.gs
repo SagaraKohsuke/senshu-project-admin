@@ -1,17 +1,84 @@
 /**
- * 月次の予約データを「食事原紙」をテンプレートとして新しいスプレッドシートに出力する
- * (前半・後半でブロックが分かれた特殊なレイアウトに対応)
- * @param {number} year 年
- * @param {number} month 月
- * @return {Object} 成功した場合はスプレッドシートのURLを含むオブジェクト、失敗した場合はエラーメッセージを含むオブジェクト
+ * 食事原紙を確認するためのスプレッドシートURLを取得する
+ * @return {Object} スプレッドシートのURLを含むオブジェクト
  */
-function exportMonthlyReservationsToSheet(year, month) {
+function getMealSheetUrl() {
+  const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+  const mealSS = SpreadsheetApp.openById(mealSheetId);
+  
+  return {
+    success: true,
+    url: mealSS.getUrl()
+  };
+}
+
+/**
+ * 毎月1日00:00に新しい月のシートを作成する（トリガー関数）
+ */
+function createMonthlySheet() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
+  const newSheetName = `食事原紙_${yyyyMM}`;
+  
+  const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+  const mealSS = SpreadsheetApp.openById(mealSheetId);
+  
+  // 既に同名のシートがある場合は作成しない
+  const existingSheet = mealSS.getSheetByName(newSheetName);
+  if (existingSheet) {
+    console.log(`シート ${newSheetName} は既に存在します。`);
+    return;
+  }
+  
+  // テンプレートシートを取得
+  const templateSheet = mealSS.getSheetByName("食事原紙");
+  if (!templateSheet) {
+    console.error("テンプレートシート「食事原紙」が見つかりません。");
+    return;
+  }
+  
+  // テンプレートをコピーして新しいシートを作成
+  const newSheet = templateSheet.copyTo(mealSS);
+  newSheet.setName(newSheetName);
+  
+  console.log(`新しいシート ${newSheetName} を作成しました。`);
+}
+
+/**
+ * 毎日18:00に実行される関数（トリガー関数）
+ * 当月のシートに予約データを更新
+ */
+function updateDailyMealSheet() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
+  const sheetName = `食事原紙_${yyyyMM}`;
+  
+  const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+  const mealSS = SpreadsheetApp.openById(mealSheetId);
+  
+  // 対象シートを取得
+  const targetSheet = mealSS.getSheetByName(sheetName);
+  if (!targetSheet) {
+    console.error(`シート ${sheetName} が見つかりません。`);
+    return;
+  }
+  
   try {
+    // 予約データ用スプレッドシートからデータを取得
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
     // ユーザーシートからIDと名前の対応表を作成
     const usersSheet = ss.getSheetByName("users");
     if (!usersSheet) {
-      return { success: false, message: "「users」シートが見つかりません。" };
+      console.error("「users」シートが見つかりません。");
+      return;
     }
+    
     const usersData = usersSheet.getDataRange().getValues();
     const usersHeaders = usersData[0];
     const userIdIndex = usersHeaders.indexOf("user_id");
@@ -24,33 +91,22 @@ function exportMonthlyReservationsToSheet(year, month) {
     // 月次の予約データを取得
     const reservationData = getMonthlyReservationCounts(year, month);
     if (!reservationData.success) {
-      return { success: false, message: reservationData.message };
+      console.error("予約データの取得に失敗しました:", reservationData.message);
+      return;
     }
 
-    // 「食事原紙」をテンプレートとして新しいシートを作成
-    const templateSheet = ss.getSheetByName("食事原紙");
-    if (!templateSheet) {
-      return { success: false, message: "「食事原紙」という名前のシートが見つかりません。" };
-    }
-    
-    const newSpreadsheetName = `${year}年${month}月 食事申し込み一覧`;
-    const newSS = SpreadsheetApp.create(newSpreadsheetName);
-    const newSheet = templateSheet.copyTo(newSS);
-    newSheet.setName(`${month}月食事`);
-
-    if (newSS.getSheets().length > 1) {
-      newSS.deleteSheet(newSS.getSheets()[0]);
-    }
-    
     // ヘッダー情報（タイトルのみ）を更新
-    const titleRange = newSheet.getRange("A1");
-    titleRange.setValue(titleRange.getValue().replace('月度', `${month}月度`));
+    const titleRange = targetSheet.getRange("A1");
+    const currentTitle = titleRange.getValue();
+    if (currentTitle && currentTitle.toString().includes('月度')) {
+      titleRange.setValue(currentTitle.toString().replace(/\d+月度/, `${month}月度`));
+    }
 
     // 前半・後半ブロックごとにユーザーIDと行のマッピングを作成し、氏名を設定する
     const mapUsersAndSetNames = (startRow, endRow) => {
       const userRowMap = {};
-      const idRange = newSheet.getRange(`A${startRow}:A${endRow}`);
-      const nameRange = newSheet.getRange(`B${startRow}:B${endRow}`);
+      const idRange = targetSheet.getRange(`A${startRow}:A${endRow}`);
+      const nameRange = targetSheet.getRange(`B${startRow}:B${endRow}`);
       const idValues = idRange.getValues();
       const namesToSet = [];
 
@@ -70,6 +126,12 @@ function exportMonthlyReservationsToSheet(year, month) {
     const userRowMap_1_16 = mapUsersAndSetNames(5, 37);
     const userRowMap_17_31 = mapUsersAndSetNames(45, 77);
 
+    // 既存のデータをクリア（3列目以降）
+    const maxCol = targetSheet.getMaxColumns();
+    if (maxCol > 2) {
+      targetSheet.getRange(5, 3, 73, maxCol - 2).clearContent();
+    }
+
     // 予約データ（「1」）を正しいブロックのセルに書き込む
     const dataToUpdate = [];
     const { breakfast: breakfastReservations, dinner: dinnerReservations } = reservationData;
@@ -82,11 +144,6 @@ function exportMonthlyReservationsToSheet(year, month) {
           let userRowMap;
           let relativeDay;
 
-          // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-          //
-          //                 ここが修正の核心部分です
-          //
-          // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
           if (dayOfMonth <= 16) {
             // 前半ブロックの場合
             userRowMap = userRowMap_1_16;
@@ -94,7 +151,6 @@ function exportMonthlyReservationsToSheet(year, month) {
           } else {
             // 後半ブロックの場合
             userRowMap = userRowMap_17_31;
-            // ★列の計算をリセットするために、日付を1から再計算する
             relativeDay = dayOfMonth - 16;
           }
 
@@ -115,20 +171,39 @@ function exportMonthlyReservationsToSheet(year, month) {
     processReservations(dinnerReservations, true);
     
     dataToUpdate.forEach(data => {
-      newSheet.getRange(data.row, data.col).setValue(data.value);
+      targetSheet.getRange(data.row, data.col).setValue(data.value);
     });
     
-    // 作成したファイルを移動し、URLを返す
-    const sourceFile = DriveApp.getFileById(ss.getId());
-    const sourceFolder = sourceFile.getParents().next();
-    const newFile = DriveApp.getFileById(newSS.getId());
-    sourceFolder.addFile(newFile);
-    DriveApp.getRootFolder().removeFile(newFile);
-
-    return { success: true, url: newSS.getUrl() };
+    console.log(`${sheetName} の予約データを更新しました。`);
 
   } catch (e) {
-    console.error('exportMonthlyReservationsToSheet Error: ' + e.message + " Stack: " + e.stack);
-    return { success: false, message: "シートの出力中にエラーが発生しました: " + e.message };
+    console.error('updateDailyMealSheet Error: ' + e.message + " Stack: " + e.stack);
   }
+}
+
+/**
+ * トリガーを設定する関数（手動で1回実行する）
+ */
+function setupTriggers() {
+  // 既存のトリガーを削除
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(trigger => {
+    ScriptApp.deleteTrigger(trigger);
+  });
+  
+  // 毎月1日00:00のトリガー
+  ScriptApp.newTrigger('createMonthlySheet')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(0)
+    .create();
+  
+  // 毎日18:00のトリガー
+  ScriptApp.newTrigger('updateDailyMealSheet')
+    .timeBased()
+    .everyDays(1)
+    .atHour(18)
+    .create();
+  
+  console.log('トリガーを設定しました。');
 }

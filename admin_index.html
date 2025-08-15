@@ -90,7 +90,7 @@
         <button @click="prevMonth" :disabled="calendarLoading">&laquo; 前月</button>
         <h3>{{ currentYear }}年 {{ currentMonth }}月</h3>
         <button @click="nextMonth" :disabled="calendarLoading">次月 &raquo;</button>
-        <button @click="exportExcel" :disabled="calendarLoading">Excel出力</button>
+        <button @click="openMealSheet" :disabled="calendarLoading">食事原紙を確認</button>
       </div>
 
       <div class="summary-section" v-if="isCurrentMonth">
@@ -503,23 +503,22 @@
           this.loadCalendarData();
         },
         // --- ★ ここがスプレッドシートを開く処理 ---
-        exportExcel: function() {
+        openMealSheet: function() {
           this.calendarLoading = true;
           google.script.run
             .withSuccessHandler(response => {
               this.calendarLoading = false;
               if (response.success) {
-                alert('スプレッドシートの作成に成功しました。新しいタブでファイルを開きます。');
                 window.open(response.url, '_blank');
               } else {
-                alert('スプレッドシートの作成に失敗しました: ' + response.message);
+                alert('スプレッドシートの取得に失敗しました: ' + response.message);
               }
             })
             .withFailureHandler(error => {
               this.calendarLoading = false;
               this.handleError(error);
             })
-            .exportMonthlyReservationsToSheet(this.currentYear, this.currentMonth);
+            .getMealSheetUrl();
         },
         // --- ここまで ---
         getBreakfastForDate: function(dateStr) {
