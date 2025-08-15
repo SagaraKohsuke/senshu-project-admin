@@ -97,10 +97,13 @@
 
     <div v-else>
       <div class="month-navigation">
-        <button @click="prevMonth" :disabled="calendarLoading">&laquo; 前月</button>
+        <button @click="prevMonth" :disabled="calendarLoading || menuUpdateLoading || recruitmentToggleLoading">&laquo; 前月</button>
         <h3>{{ currentYear }}年 {{ currentMonth }}月</h3>
-        <button @click="nextMonth" :disabled="calendarLoading">次月 &raquo;</button>
-        <button @click="openMealSheet" :disabled="calendarLoading">食事原紙を確認</button>
+        <button @click="nextMonth" :disabled="calendarLoading || menuUpdateLoading || recruitmentToggleLoading">次月 &raquo;</button>
+        <button @click="openMealSheet" :disabled="sheetOpenLoading || calendarLoading">
+          <span v-if="sheetOpenLoading">処理中...</span>
+          <span v-else>食事原紙を確認</span>
+        </button>
       </div>
 
       <div class="summary-section" v-if="isCurrentMonth">
@@ -213,15 +216,20 @@
                     </select>
                   </div>
                   <div class="menu-edit-inputs">
-                    <input type="text" v-model="breakfastMenuInputs[getBreakfastForDate(date).calendarId]" placeholder="メニューを入力" >
-                    <button @click="updateMenu('breakfast', getBreakfastForDate(date).calendarId)">変更</button>
+                    <input type="text" v-model="breakfastMenuInputs[getBreakfastForDate(date).calendarId]" placeholder="メニューを入力" :disabled="menuUpdateLoading">
+                    <button @click="updateMenu('breakfast', getBreakfastForDate(date).calendarId)" :disabled="menuUpdateLoading">
+                      <span v-if="menuUpdateLoading">更新中...</span>
+                      <span v-else>変更</span>
+                    </button>
                   </div>
                 </div>
                 <!-- 募集停止ボタン -->
                 <div class="recruitment-control">
                   <button @click="toggleRecruitmentStop(date, 'breakfast')" 
-                          :class="['stop-button', { 'stopped': isRecruitmentStopped(date, 'breakfast') }]">
-                    {{ isRecruitmentStopped(date, 'breakfast') ? '募集再開' : '募集停止' }}
+                          :class="['stop-button', { 'stopped': isRecruitmentStopped(date, 'breakfast') }]"
+                          :disabled="recruitmentToggleLoading">
+                    <span v-if="recruitmentToggleLoading">処理中...</span>
+                    <span v-else>{{ isRecruitmentStopped(date, 'breakfast') ? '募集再開' : '募集停止' }}</span>
                   </button>
                 </div>
               </div>
@@ -252,15 +260,20 @@
                     </select>
                   </div>
                   <div class="menu-edit-inputs">
-                    <input type="text" v-model="dinnerMenuInputs[getDinnerForDate(date).calendarId]" placeholder="メニューを入力" >
-                    <button @click="updateMenu('dinner', getDinnerForDate(date).calendarId)">変更</button>
+                    <input type="text" v-model="dinnerMenuInputs[getDinnerForDate(date).calendarId]" placeholder="メニューを入力" :disabled="menuUpdateLoading">
+                    <button @click="updateMenu('dinner', getDinnerForDate(date).calendarId)" :disabled="menuUpdateLoading">
+                      <span v-if="menuUpdateLoading">更新中...</span>
+                      <span v-else>変更</span>
+                    </button>
                   </div>
                 </div>
                 <!-- 募集停止ボタン -->
                 <div class="recruitment-control">
                   <button @click="toggleRecruitmentStop(date, 'dinner')" 
-                          :class="['stop-button', { 'stopped': isRecruitmentStopped(date, 'dinner') }]">
-                    {{ isRecruitmentStopped(date, 'dinner') ? '募集再開' : '募集停止' }}
+                          :class="['stop-button', { 'stopped': isRecruitmentStopped(date, 'dinner') }]"
+                          :disabled="recruitmentToggleLoading">
+                    <span v-if="recruitmentToggleLoading">処理中...</span>
+                    <span v-else>{{ isRecruitmentStopped(date, 'dinner') ? '募集再開' : '募集停止' }}</span>
                   </button>
                 </div>
               </div>
@@ -304,7 +317,10 @@
         dinnerMenuInputs: {},
         breakfastMenuList: [],
         dinnerMenuList: [],
-        recruitmentStops: {} // 募集停止情報を格納
+        recruitmentStops: {}, // 募集停止情報を格納
+        menuUpdateLoading: false, // メニュー更新中のローディング
+        recruitmentToggleLoading: false, // 募集停止切り替え中のローディング
+        sheetOpenLoading: false // スプレッドシート開く処理中のローディング
       },
       computed: {
         isCurrentMonth: function() {
@@ -501,7 +517,7 @@
             return;
           }
           
-          this.calendarLoading = true;
+          this.menuUpdateLoading = true;
           google.script.run
             .withSuccessHandler(response => {
               this.handleMenuUpdateSuccess(response, mealType, calendarId, menuInput);
@@ -526,7 +542,7 @@
           } else {
             alert('メニューの更新に失敗しました: ' + response.message);
           }
-          this.calendarLoading = false;
+          this.menuUpdateLoading = false;
         },
         createMonthDates: function() {
           const daysInMonth = new Date(this.currentYear, this.currentMonth, 0).getDate();
@@ -554,6 +570,9 @@
           console.error('エラーが発生しました:', error);
           this.loading = false;
           this.calendarLoading = false;
+          this.menuUpdateLoading = false;
+          this.recruitmentToggleLoading = false;
+          this.sheetOpenLoading = false;
           alert('処理中にエラーが発生しました。ページを更新してください。');
         },
         prevMonth: function() {
@@ -576,10 +595,10 @@
         },
         // --- ★ ここがスプレッドシートを開く処理 ---
         openMealSheet: function() {
-          this.calendarLoading = true;
+          this.sheetOpenLoading = true;
           google.script.run
             .withSuccessHandler(response => {
-              this.calendarLoading = false;
+              this.sheetOpenLoading = false;
               if (response.success) {
                 window.open(response.url, '_blank');
               } else {
@@ -587,7 +606,7 @@
               }
             })
             .withFailureHandler(error => {
-              this.calendarLoading = false;
+              this.sheetOpenLoading = false;
               this.handleError(error);
             })
             .getMealSheetUrl();
@@ -622,10 +641,10 @@
           return this.recruitmentStops[date] && this.recruitmentStops[date][mealType];
         },
         toggleRecruitmentStop: function(date, mealType) {
-          this.calendarLoading = true;
+          this.recruitmentToggleLoading = true;
           google.script.run
             .withSuccessHandler(response => {
-              this.calendarLoading = false;
+              this.recruitmentToggleLoading = false;
               if (response.success) {
                 alert(response.message);
                 this.fetchRecruitmentStops();
@@ -634,7 +653,7 @@
               }
             })
             .withFailureHandler(error => {
-              this.calendarLoading = false;
+              this.recruitmentToggleLoading = false;
               this.handleError(error);
             })
             .toggleRecruitmentStop(date, mealType, this.currentYear, this.currentMonth);
