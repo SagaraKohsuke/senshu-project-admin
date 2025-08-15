@@ -101,7 +101,6 @@
         <h3>{{ currentYear }}年 {{ currentMonth }}月</h3>
         <button @click="nextMonth" :disabled="calendarLoading">次月 &raquo;</button>
         <button @click="openMealSheet" :disabled="calendarLoading">食事原紙を確認</button>
-        <button @click="testCalendarFunction" style="background-color: #ff9800; color: white; margin-left: 10px;" :disabled="calendarLoading">🔧 テスト実行</button>
       </div>
 
       <div class="summary-section" v-if="isCurrentMonth">
@@ -281,11 +280,6 @@
           </div>
         </div>
       </div>
-      <div v-if="testResult" style="margin: 15px 0; padding: 15px; background-color: #fff3e0; border: 2px solid #ff9800; border-radius: 5px;">
-        <h4 style="color: #e65100; margin-top: 0;">🔧 テスト結果</h4>
-        <pre style="font-size: 12px; background-color: white; padding: 10px; border-radius: 4px; overflow: auto; max-height: 300px;">{{ testResult }}</pre>
-      </div>
-      
       <div v-else-if="calendarLoading" class="loading">
         カレンダーデータを読み込み中...
       </div>
@@ -310,8 +304,7 @@
         dinnerMenuInputs: {},
         breakfastMenuList: [],
         dinnerMenuList: [],
-        recruitmentStops: {}, // 募集停止情報を格納
-        testResult: null // テスト結果表示用
+        recruitmentStops: {} // 募集停止情報を格納
       },
       computed: {
         isCurrentMonth: function() {
@@ -408,21 +401,13 @@
       },
       methods: {
         loadCalendarData: function() {
-          console.log('=== カレンダーデータ読み込み開始 ===');
-          console.log('年:', this.currentYear, '月:', this.currentMonth);
           this.calendarLoading = true;
           this.calendarLoaded = false;
           this.fetchMenuLists();
           this.fetchRecruitmentStops();
           google.script.run
-            .withSuccessHandler((result) => {
-              console.log('✅ カレンダーデータ取得成功:', result);
-              this.processCalendarData(result);
-            })
-            .withFailureHandler((error) => {
-              console.error('❌ カレンダーデータ読み込みエラー:', error);
-              this.handleCalendarError(error);
-            })
+            .withSuccessHandler(this.processCalendarData)
+            .withFailureHandler(this.handleCalendarError)
             .getMonthlyReservationCounts(this.currentYear, this.currentMonth);
         },
         fetchRecruitmentStops: function() {
@@ -489,6 +474,8 @@
                 this.$set(this.breakfastMenuInputs, item.calendarId, item.menuName !== "未設定" ? item.menuName : "");
               }
             }
+          } else {
+            console.warn('⚠️ breakfastReservations is not an array:', this.breakfastReservations);
           }
           
           this.dinnerMenuInputs = {};
@@ -498,6 +485,8 @@
                 this.$set(this.dinnerMenuInputs, item.calendarId, item.menuName !== "未設定" ? item.menuName : "");
               }
             }
+          } else {
+            console.warn('⚠️ dinnerReservations is not an array:', this.dinnerReservations);
           }
           
           console.log('メニュー入力初期化完了:', {
@@ -556,12 +545,10 @@
           return `${year}-${month}-${day}`;
         },
         handleCalendarError: function(error) {
-          console.error('❌ カレンダーデータの取得中にエラーが発生しました:', error);
-          console.error('エラーメッセージ:', error.message);
-          console.error('エラースタック:', error.stack);
+          console.error('カレンダーデータの取得中にエラーが発生しました:', error);
           this.loading = false;
           this.calendarLoading = false;
-          alert(`カレンダーデータの読み込み中にエラーが発生しました。\nエラー: ${error.message || 'Unknown error'}`);
+          alert('カレンダーデータの読み込み中にエラーが発生しました。');
         },
         handleError: function(error) {
           console.error('エラーが発生しました:', error);
@@ -651,21 +638,6 @@
               this.handleError(error);
             })
             .toggleRecruitmentStop(date, mealType, this.currentYear, this.currentMonth);
-        },
-        testCalendarFunction: function() {
-          console.log('=== テスト実行開始 ===');
-          this.testResult = '実行中...';
-          
-          google.script.run
-            .withSuccessHandler((result) => {
-              console.log('✅ テスト成功:', result);
-              this.testResult = `✅ テスト成功 (${new Date().toLocaleTimeString()})\n\n` + JSON.stringify(result, null, 2);
-            })
-            .withFailureHandler((error) => {
-              console.error('❌ テスト失敗:', error);
-              this.testResult = `❌ テスト失敗 (${new Date().toLocaleTimeString()})\n\nエラー: ${error.message}\n\nスタック:\n${error.stack || 'スタック情報なし'}`;
-            })
-            .getMonthlyReservationCounts(this.currentYear, this.currentMonth);
         },
       },
       mounted: function() {

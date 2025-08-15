@@ -1,4 +1,4 @@
-function test(){
+function debugTest(){
   console.log('=== テスト開始 ===');
   try {
     // まずスプレッドシートの整合性をチェック
@@ -6,13 +6,13 @@ function test(){
     const ss = SpreadsheetApp.openById(spreadsheetId);
     console.log('✅ スプレッドシート接続成功');
     
-    const yyyyMM = `${2025}${8.toString().padStart(2, "0")}`;
+    const yyyyMM = "202508";
     console.log('検索対象:', yyyyMM);
     
-    const bCalendarSheetName = `b_calendar_${yyyyMM}`;
-    const dCalendarSheetName = `d_calendar_${yyyyMM}`;
-    const bReservationSheetName = `b_reservations_${yyyyMM}`;
-    const dReservationSheetName = `d_reservations_${yyyyMM}`;
+    const bCalendarSheetName = "b_calendar_" + yyyyMM;
+    const dCalendarSheetName = "d_calendar_" + yyyyMM;
+    const bReservationSheetName = "b_reservations_" + yyyyMM;
+    const dReservationSheetName = "d_reservations_" + yyyyMM;
     
     const bCalendarSheet = ss.getSheetByName(bCalendarSheetName);
     const dCalendarSheet = ss.getSheetByName(dCalendarSheetName);
@@ -224,23 +224,23 @@ function getRecruitmentStops(year, month) {
 
 function getMonthlyReservationCounts(year, month) {
   try {
-    console.log(`=== getMonthlyReservationCounts開始: ${year}年${month}月 ===`);
+    console.log('=== getMonthlyReservationCounts開始: ' + year + '年' + month + '月 ===');
     
     const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
     const ss = SpreadsheetApp.openById(spreadsheetId);
     console.log('✅ スプレッドシート接続成功');
     
-    const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
-    const bCalendarSheetName = `b_calendar_${yyyyMM}`;
-    const dCalendarSheetName = `d_calendar_${yyyyMM}`;
-    const bReservationSheetName = `b_reservations_${yyyyMM}`;
-    const dReservationSheetName = `d_reservations_${yyyyMM}`;
+    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const bCalendarSheetName = "b_calendar_" + yyyyMM;
+    const dCalendarSheetName = "d_calendar_" + yyyyMM;
+    const bReservationSheetName = "b_reservations_" + yyyyMM;
+    const dReservationSheetName = "d_reservations_" + yyyyMM;
     
     console.log('検索対象シート:', {
-      bCalendarSheetName,
-      dCalendarSheetName, 
-      bReservationSheetName,
-      dReservationSheetName
+      bCalendarSheetName: bCalendarSheetName,
+      dCalendarSheetName: dCalendarSheetName, 
+      bReservationSheetName: bReservationSheetName,
+      dReservationSheetName: dReservationSheetName
     });
   
     // シートの存在確認
@@ -263,14 +263,14 @@ function getMonthlyReservationCounts(year, month) {
     if (!bCalendarSheet || !dCalendarSheet) {
       return {
         success: false,
-        message: `カレンダーシート ${bCalendarSheetName} または ${dCalendarSheetName} が見つかりません。`
+        message: 'カレンダーシート ' + bCalendarSheetName + ' または ' + dCalendarSheetName + ' が見つかりません。'
       };
     }
   
     if (!bReservationSheet || !dReservationSheet) {
       return {
         success: false,
-        message: `予約シート ${bReservationSheetName} または ${dReservationSheetName} が見つかりません。`
+        message: '予約シート ' + bReservationSheetName + ' または ' + dReservationSheetName + ' が見つかりません。'
       };
     }
   
@@ -498,7 +498,7 @@ function getMonthlyReservationCounts(year, month) {
     console.error('エラースタック:', error.stack);
     return {
       success: false,
-      message: `処理中にエラーが発生しました: ${error.message}`,
+      message: '処理中にエラーが発生しました: ' + error.message,
       breakfast: [],
       dinner: []
     };
