@@ -97,16 +97,12 @@
 
     <div v-else>
       <div class="month-navigation">
-        <button @click="prevMonth" :disabled="calendarLoading || menuUpdateLoading || recruitmentToggleLoading || mealSheetGenerateLoading">&laquo; 前月</button>
+        <button @click="prevMonth" :disabled="calendarLoading || menuUpdateLoading || recruitmentToggleLoading">&laquo; 前月</button>
         <h3>{{ currentYear }}年 {{ currentMonth }}月</h3>
-        <button @click="nextMonth" :disabled="calendarLoading || menuUpdateLoading || recruitmentToggleLoading || mealSheetGenerateLoading">次月 &raquo;</button>
+        <button @click="nextMonth" :disabled="calendarLoading || menuUpdateLoading || recruitmentToggleLoading">次月 &raquo;</button>
         <button @click="openMealSheet" :disabled="sheetOpenLoading || calendarLoading">
           <span v-if="sheetOpenLoading">処理中...</span>
           <span v-else>食事原紙を確認</span>
-        </button>
-        <button @click="generateMealSheet" :disabled="mealSheetGenerateLoading || calendarLoading">
-          <span v-if="mealSheetGenerateLoading">生成中...</span>
-          <span v-else>食事原紙を生成</span>
         </button>
       </div>
 
@@ -324,8 +320,7 @@
         recruitmentStops: {}, // 募集停止情報を格納
         menuUpdateLoading: false, // メニュー更新中のローディング
         recruitmentToggleLoading: false, // 募集停止切り替え中のローディング
-        sheetOpenLoading: false, // スプレッドシート開く処理中のローディング
-        mealSheetGenerateLoading: false // 食事原紙生成中のローディング
+        sheetOpenLoading: false // スプレッドシート開く処理中のローディング
       },
       computed: {
         isCurrentMonth: function() {
@@ -578,7 +573,6 @@
           this.menuUpdateLoading = false;
           this.recruitmentToggleLoading = false;
           this.sheetOpenLoading = false;
-          this.mealSheetGenerateLoading = false;
           alert('処理中にエラーが発生しました。ページを更新してください。');
         },
         prevMonth: function() {
@@ -616,27 +610,6 @@
               this.handleError(error);
             })
             .getMealSheetUrl();
-        },
-        // --- 食事原紙生成処理 ---
-        generateMealSheet: function() {
-          this.mealSheetGenerateLoading = true;
-          google.script.run
-            .withSuccessHandler(response => {
-              this.mealSheetGenerateLoading = false;
-              if (response.success) {
-                alert('食事原紙を生成しました！');
-                if (response.url) {
-                  window.open(response.url, '_blank');
-                }
-              } else {
-                alert('食事原紙の生成に失敗しました: ' + response.message);
-              }
-            })
-            .withFailureHandler(error => {
-              this.mealSheetGenerateLoading = false;
-              this.handleError(error);
-            })
-            .generateMealSheet(this.currentYear, this.currentMonth);
         },
         // --- ここまで ---
         getBreakfastForDate: function(dateStr) {

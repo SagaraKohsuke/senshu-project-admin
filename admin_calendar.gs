@@ -53,8 +53,8 @@ function debugTest(){
  */
 function getMealSheetUrl() {
   try {
-    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
-    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+    const ss = SpreadsheetApp.openById(mealSheetId);
     
     return {
       success: true,
@@ -64,7 +64,7 @@ function getMealSheetUrl() {
     console.error('getMealSheetUrl Error: ' + e.message);
     return {
       success: false,
-      message: "スプレッドシートのURL取得に失敗しました: " + e.message
+      message: "食事原紙スプレッドシートのURL取得に失敗しました: " + e.message
     };
   }
 }
@@ -229,6 +229,191 @@ function generateMealSheet(year, month) {
 }
 
 /**
+ * 毎月01日00:00に実行される食事原紙生成処理
+ * 指定されたテンプレートスプレッドシートに月次シートを作成
+ * @return {Object} 結果
+ */
+function monthlyMealSheetGeneration() {
+  try {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    
+    console.log('=== 月次食事原紙生成開始 ===');
+    console.log('対象月:', year + '年' + month + '月');
+    
+    const result = generateMonthlyMealSheet(year, month);
+    
+    if (result.success) {
+      console.log('✅ 月次食事原紙生成成功');
+      console.log('シート名:', result.sheetName);
+    } else {
+      console.log('❌ 月次食事原紙生成失敗:', result.message);
+    }
+    
+    return result;
+    
+  } catch (e) {
+    console.error('monthlyMealSheetGeneration Error: ' + e.message);
+    return {
+      success: false,
+      message: '月次食事原紙生成中にエラーが発生しました: ' + e.message
+    };
+  }
+}
+
+/**
+ * 指定月の食事原紙を生成する（既存シート使用）
+ * @param {number} year 年
+ * @param {number} month 月
+ * @return {Object} 結果
+ */
+function generateMonthlyMealSheet(year, month) {
+  try {
+    const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+    const dataSheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    
+    const mealSs = SpreadsheetApp.openById(mealSheetId);
+    const dataSs = SpreadsheetApp.openById(dataSheetId);
+    
+    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    
+    // 食事原紙シートを取得
+    const mealSheet = mealSs.getSheetByName("食事原紙");
+    if (!mealSheet) {
+      return {
+        success: false,
+        message: "食事原紙シートが見つかりません。"
+      };
+    }
+    
+    // ユーザーデータを取得
+    const usersSheet = dataSs.getSheetByName("users");
+    if (!usersSheet) {
+      return {
+        success: false,
+        message: "ユーザーシートが見つかりません。"
+      };
+    }
+    
+    const usersData = usersSheet.getDataRange().getValues();
+    const usersHeaders = usersData[0];
+    const userIdIndex = usersHeaders.indexOf("user_id");
+    const userNameIndex = usersHeaders.indexOf("name");
+    
+    if (userIdIndex === -1 || userNameIndex === -1) {
+      return {
+        success: false,
+        message: "ユーザーシートに必要なカラムが見つかりません。"
+      };
+    }
+    
+    // 月の日数を取得
+    const daysInMonth = new Date(year, month, 0).getDate();
+    
+    // 既存データを全クリア（3行目以降、C列以降）
+    const lastRow = mealSheet.getLastRow();
+    const lastCol = mealSheet.getLastColumn();
+    if (lastRow >= 3 && lastCol >= 3) {
+      mealSheet.getRange(3, 3, lastRow - 2, lastCol - 2).clearContent();
+    }
+    
+    // ヘッダー行を更新（日付部分）
+    const headerRow = 2;
+    let currentCol = 3; // C列から開始（A:部屋番号、B:名前の後）
+    
+    // 既存のヘッダー列をクリア（C列以降）
+    if (lastCol >= 3) {
+      mealSheet.getRange(1, 3, 2, lastCol - 2).clearContent();
+    }
+    
+    // 月・年をタイトルに設定
+    mealSheet.getRange(1, 1).setValue(year + "年" + month + "月 食事原紙");
+    
+    // 日付ヘッダーを設定
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = date.getDay();
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      
+      // 朝食列
+      mealSheet.getRange(headerRow, currentCol).setValue(day + '日(' + dayNames[dayOfWeek] + ')朝');
+      currentCol++;
+      
+      // 夕食列（土曜日以外）
+      if (dayOfWeek !== 6) {
+        mealSheet.getRange(headerRow, currentCol).setValue(day + '日(' + dayNames[dayOfWeek] + ')夕');
+        currentCol++;
+      }
+    }
+    
+    // ユーザー行を作成（3行目から開始）
+    let currentRow = 3;
+    for (let i = 1; i < usersData.length; i++) {
+      const userId = usersData[i][userIdIndex];
+      const userName = usersData[i][userNameIndex];
+      
+      if (userId && userName) {
+        // 部屋番号と名前を設定
+        mealSheet.getRange(currentRow, 1).setValue(userId);
+        mealSheet.getRange(currentRow, 2).setValue(userName);
+        
+        // 各日のセルを初期化（空白）
+        currentCol = 3;
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(year, month - 1, day);
+          const dayOfWeek = date.getDay();
+          
+          // 朝食セル
+          mealSheet.getRange(currentRow, currentCol).setValue("");
+          currentCol++;
+          
+          // 夕食セル（土曜日以外）
+          if (dayOfWeek !== 6) {
+            mealSheet.getRange(currentRow, currentCol).setValue("");
+            currentCol++;
+          }
+        }
+        
+        currentRow++;
+      }
+    }
+    
+    // 列幅を調整
+    mealSheet.autoResizeColumns(1, currentCol - 1);
+    
+    // 枠線を追加
+    const totalRows = currentRow - 1;
+    const totalCols = currentCol - 1;
+    mealSheet.getRange(2, 1, totalRows - 1, totalCols).setBorder(true, true, true, true, true, true);
+    
+    // ヘッダー行を強調
+    mealSheet.getRange(2, 1, 1, totalCols).setBackground('#e6f3ff');
+    mealSheet.getRange(2, 1, 1, totalCols).setFontWeight('bold');
+    
+    // タイトル行を強調
+    mealSheet.getRange(1, 1).setFontSize(14);
+    mealSheet.getRange(1, 1).setFontWeight('bold');
+    
+    return {
+      success: true,
+      message: "食事原紙を更新しました。",
+      sheetName: "食事原紙",
+      year: year,
+      month: month,
+      url: mealSs.getUrl() + "#gid=" + mealSheet.getSheetId()
+    };
+    
+  } catch (e) {
+    console.error('generateMonthlyMealSheet Error: ' + e.message);
+    return {
+      success: false,
+      message: "食事原紙の生成中にエラーが発生しました: " + e.message
+    };
+  }
+}
+
+/**
  * テスト用：当日の朝食・夕食の記録を手動で作成する
  * 本来は18:00に自動実行される処理
  * @return {Object} 結果
@@ -264,7 +449,7 @@ function testCreateDailyMealRecord() {
 }
 
 /**
- * 指定日の朝食・夕食の記録を作成する
+ * 指定日の朝食・夕食の記録を食事原紙に書き込む
  * @param {number} year 年
  * @param {number} month 月
  * @param {number} day 日
@@ -272,31 +457,28 @@ function testCreateDailyMealRecord() {
  */
 function createDailyMealRecord(year, month, day) {
   try {
-    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
-    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+    const dataSheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
     
-    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const mealSs = SpreadsheetApp.openById(mealSheetId);
+    const dataSs = SpreadsheetApp.openById(dataSheetId);
+    
     const dateStr = year + "-" + (month < 10 ? "0" + month : month) + "-" + (day < 10 ? "0" + day : day);
     const targetDate = new Date(year, month - 1, day);
     const dayOfWeek = targetDate.getDay();
     
-    console.log('記録作成対象:', {
-      yyyyMM: yyyyMM,
+    console.log('食事原紙記録作成対象:', {
       dateStr: dateStr,
       dayOfWeek: dayOfWeek
     });
     
-    // 食事記録シート名
-    const mealRecordSheetName = "meal_records_" + yyyyMM;
-    
-    // 食事記録シートの取得または作成
-    let mealRecordSheet = ss.getSheetByName(mealRecordSheetName);
-    if (!mealRecordSheet) {
-      mealRecordSheet = ss.insertSheet(mealRecordSheetName);
-      // ヘッダー作成
-      const headers = ["record_id", "date", "meal_type", "user_id", "user_name", "created_at"];
-      mealRecordSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-      mealRecordSheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
+    // 食事原紙シートを取得
+    const mealSheet = mealSs.getSheetByName("食事原紙");
+    if (!mealSheet) {
+      return {
+        success: false,
+        message: "食事原紙シートが見つかりません。"
+      };
     }
     
     // 予約データを取得
@@ -308,64 +490,91 @@ function createDailyMealRecord(year, month, day) {
       };
     }
     
-    const records = [];
-    const timestamp = new Date();
+    // ヘッダー行から日付列を特定
+    const headerRow = 2;
+    const lastCol = mealSheet.getLastColumn();
+    const headers = mealSheet.getRange(headerRow, 1, 1, lastCol).getValues()[0];
+    
+    let breakfastCol = -1;
+    let dinnerCol = -1;
+    
+    // 該当日の朝食・夕食列を検索
+    for (let col = 0; col < headers.length; col++) {
+      const header = headers[col];
+      if (typeof header === 'string') {
+        if (header.includes(day + '日') && header.includes('朝')) {
+          breakfastCol = col + 1; // 1-based index
+        }
+        if (header.includes(day + '日') && header.includes('夕')) {
+          dinnerCol = col + 1; // 1-based index
+        }
+      }
+    }
+    
+    console.log('列位置:', {
+      breakfastCol: breakfastCol,
+      dinnerCol: dinnerCol
+    });
+    
+    if (breakfastCol === -1) {
+      return {
+        success: false,
+        message: day + "日の朝食列が見つかりません。"
+      };
+    }
+    
+    // ユーザー行を特定するためのマップ作成
+    const lastRow = mealSheet.getLastRow();
+    const userRows = {};
+    
+    for (let row = 3; row <= lastRow; row++) {
+      const userId = mealSheet.getRange(row, 1).getValue();
+      if (userId) {
+        userRows[userId] = row;
+      }
+    }
+    
+    let recordsCreated = 0;
     
     // 朝食の記録を作成
     const breakfastData = reservationData.breakfast.find(item => item.date === dateStr);
     if (breakfastData && breakfastData.users && Array.isArray(breakfastData.users)) {
       for (const user of breakfastData.users) {
-        const recordId = "b_" + yyyyMM + "_" + (day < 10 ? "0" + day : day) + "_" + user.userId;
-        records.push([
-          recordId,
-          dateStr,
-          "breakfast",
-          user.userId,
-          user.userName,
-          timestamp
-        ]);
-      }
-    }
-    
-    // 夕食の記録を作成（土曜日以外）
-    if (dayOfWeek !== 6) {
-      const dinnerData = reservationData.dinner.find(item => item.date === dateStr);
-      if (dinnerData && dinnerData.users && Array.isArray(dinnerData.users)) {
-        for (const user of dinnerData.users) {
-          const recordId = "d_" + yyyyMM + "_" + (day < 10 ? "0" + day : day) + "_" + user.userId;
-          records.push([
-            recordId,
-            dateStr,
-            "dinner",
-            user.userId,
-            user.userName,
-            timestamp
-          ]);
+        const userRow = userRows[user.userId];
+        if (userRow) {
+          mealSheet.getRange(userRow, breakfastCol).setValue(1);
+          recordsCreated++;
         }
       }
     }
     
-    // 記録をシートに追加
-    if (records.length > 0) {
-      const lastRow = mealRecordSheet.getLastRow();
-      mealRecordSheet.getRange(lastRow + 1, 1, records.length, 6).setValues(records);
-      
-      console.log('記録作成完了:', {
-        totalRecords: records.length,
-        breakfastCount: records.filter(r => r[2] === "breakfast").length,
-        dinnerCount: records.filter(r => r[2] === "dinner").length
-      });
-    } else {
-      console.log('記録対象なし（予約がありません）');
+    // 夕食の記録を作成（土曜日以外）
+    if (dayOfWeek !== 6 && dinnerCol !== -1) {
+      const dinnerData = reservationData.dinner.find(item => item.date === dateStr);
+      if (dinnerData && dinnerData.users && Array.isArray(dinnerData.users)) {
+        for (const user of dinnerData.users) {
+          const userRow = userRows[user.userId];
+          if (userRow) {
+            mealSheet.getRange(userRow, dinnerCol).setValue(1);
+            recordsCreated++;
+          }
+        }
+      }
     }
+    
+    console.log('食事原紙記録作成完了:', {
+      totalRecords: recordsCreated,
+      breakfastUsers: breakfastData ? breakfastData.users.length : 0,
+      dinnerUsers: (dayOfWeek !== 6 && reservationData.dinner.find(item => item.date === dateStr)) ? 
+        reservationData.dinner.find(item => item.date === dateStr).users.length : 0
+    });
     
     return {
       success: true,
-      message: "食事記録を作成しました。",
+      message: "食事原紙に記録を作成しました。",
       date: dateStr,
-      recordsCreated: records.length,
-      records: records,
-      sheetName: mealRecordSheetName
+      recordsCreated: recordsCreated,
+      sheetName: "食事原紙"
     };
     
   } catch (e) {
