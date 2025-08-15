@@ -2,76 +2,183 @@ function test(){
   const hoge = getMonthlyReservationCounts(2025, 4);
   Logger.log(hoge);
 }
-function getMonthlyReservationCounts(year, month) { 
-  const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
-  const bCalendarSheetName = `b_calendar_${yyyyMM}`;
-  const dCalendarSheetName = `d_calendar_${yyyyMM}`;
-  const bReservationSheetName = `b_reservations_${yyyyMM}`;
-  const dReservationSheetName = `d_reservations_${yyyyMM}`;
-  
-  // シートの存在確認
-  const bCalendarSheet = ss.getSheetByName(bCalendarSheetName);
-  const dCalendarSheet = ss.getSheetByName(dCalendarSheetName);
-  const bReservationSheet = ss.getSheetByName(bReservationSheetName);
-  const dReservationSheet = ss.getSheetByName(dReservationSheetName);
-  const usersSheet = ss.getSheetByName("users");
-  const bMenuSheet = ss.getSheetByName("b_menus");
-  const dMenuSheet = ss.getSheetByName("d_menus");
-  
-  if (!bCalendarSheet || !dCalendarSheet) {
+
+/**
+ * 指定した日の募集状態を切り替える（is_activeフィールドを使用）
+ * @param {string} date 対象日付 (YYYY-MM-DD形式)
+ * @param {string} mealType 食事タイプ ("breakfast" または "dinner")
+ * @param {number} year 年
+ * @param {number} month 月
+ * @return {Object} 結果
+ */
+function toggleRecruitmentStop(date, mealType, year, month) {
+  try {
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
+    const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
+    const prefix = mealType === "breakfast" ? "b" : "d";
+    const calendarSheetName = `${prefix}_calendar_${yyyyMM}`;
+    
+    const calendarSheet = ss.getSheetByName(calendarSheetName);
+    if (!calendarSheet) {
+      return {
+        success: false,
+        message: `カレンダーシート ${calendarSheetName} が見つかりません。`
+      };
+    }
+    
+    const calendarData = calendarSheet.getDataRange().getValues();
+    const headers = calendarData[0];
+    
+    const calendarIdIndex = headers.indexOf(`${prefix}_calendar_id`);
+    const dateIndex = headers.indexOf("date");
+    const isActiveIndex = headers.indexOf("is_active");
+    
+    if (calendarIdIndex === -1 || dateIndex === -1 || isActiveIndex === -1) {
+      return {
+        success: false,
+        message: "必要なカラムが見つかりません。"
+      };
+    }
+    
+    // 対象日付の行を検索
+    let targetRowIndex = -1;
+    for (let i = 1; i < calendarData.length; i++) {
+      const rowDate = calendarData[i][dateIndex];
+      let dateStr;
+      
+      if (rowDate instanceof Date) {
+        dateStr = formatDate(rowDate);
+      } else {
+        dateStr = rowDate;
+      }
+      
+      if (dateStr === date) {
+        targetRowIndex = i;
+        break;
+      }
+    }
+    
+    if (targetRowIndex === -1) {
+      return {
+        success: false,
+        message: "指定された日付が見つかりません。"
+      };
+    }
+    
+    // is_activeを切り替え
+    const currentActive = calendarData[targetRowIndex][isActiveIndex];
+    const newActive = !currentActive;
+    
+    calendarSheet.getRange(targetRowIndex + 1, isActiveIndex + 1).setValue(newActive);
+    
+    return {
+      success: true,
+      isActive: newActive,
+      message: newActive ? "募集を再開しました" : "募集を停止しました"
+    };
+    
+  } catch (e) {
+    console.error('toggleRecruitmentStop Error: ' + e.message);
     return {
       success: false,
-      message: `カレンダーシート ${bCalendarSheetName} または ${dCalendarSheetName} が見つかりません。`
+      message: "募集状態の変更中にエラーが発生しました: " + e.message
     };
   }
-  
-  if (!bReservationSheet || !dReservationSheet) {
-    return {
-      success: false,
-      message: `予約シート ${bReservationSheetName} または ${dReservationSheetName} が見つかりません。`
-    };
+}
+
+/**
+ * 募集停止状況を取得する（is_activeフィールドを使用）
+ * @param {number} year 年
+ * @param {number} month 月
+ * @return {Object} 募集停止情報
+ */
+function getRecruitmentStops(year, month) {
+  try {
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
+    const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
+    const bCalendarSheetName = `b_calendar_${yyyyMM}`;
+    const dCalendarSheetName = `d_calendar_${yyyyMM}`;
+    
+    const bCalendarSheet = ss.getSheetByName(bCalendarSheetName);
+    const dCalendarSheet = ss.getSheetByName(dCalendarSheetName);
+    
+    const stops = {};
+    
+    // 朝食カレンダーの処理
+    if (bCalendarSheet) {
+      const bCalendarData = bCalendarSheet.getDataRange().getValues();
+      if (bCalendarData.length > 1) {
+        const headers = bCalendarData[0];
+        const dateIndex = headers.indexOf("date");
+        const isActiveIndex = headers.indexOf("is_active");
+        
+        if (dateIndex !== -1 && isActiveIndex !== -1) {
+          for (let i = 1; i < bCalendarData.length; i++) {
+            const rowDate = bCalendarData[i][dateIndex];
+            const isActive = bCalendarData[i][isActiveIndex];
+            
+            let dateStr;
+            if (rowDate instanceof Date) {
+              dateStr = formatDate(rowDate);
+            } else {
+              dateStr = rowDate;
+            }
+            
+            if (!isActive) {
+              if (!stops[dateStr]) {
+                stops[dateStr] = {};
+              }
+              stops[dateStr]['breakfast'] = true;
+            }
+          }
+        }
+      }
+    }
+    
+    // 夕食カレンダーの処理
+    if (dCalendarSheet) {
+      const dCalendarData = dCalendarSheet.getDataRange().getValues();
+      if (dCalendarData.length > 1) {
+        const headers = dCalendarData[0];
+        const dateIndex = headers.indexOf("date");
+        const isActiveIndex = headers.indexOf("is_active");
+        
+        if (dateIndex !== -1 && isActiveIndex !== -1) {
+          for (let i = 1; i < dCalendarData.length; i++) {
+            const rowDate = dCalendarData[i][dateIndex];
+            const isActive = dCalendarData[i][isActiveIndex];
+            
+            let dateStr;
+            if (rowDate instanceof Date) {
+              dateStr = formatDate(rowDate);
+            } else {
+              dateStr = rowDate;
+            }
+            
+            if (!isActive) {
+              if (!stops[dateStr]) {
+                stops[dateStr] = {};
+              }
+              stops[dateStr]['dinner'] = true;
+            }
+          }
+        }
+      }
+    }
+    
+    return { success: true, stops: stops };
+    
+  } catch (e) {
+    console.error('getRecruitmentStops Error: ' + e.message);
+    return { success: false, message: e.message };
   }
-  
-  if (!usersSheet) {
-    return {
-      success: false,
-      message: "ユーザーシートが見つかりません。"
-    };
-  }
-  
-  // データの取得
-  const bCalendarData = bCalendarSheet.getDataRange().getValues();
-  const dCalendarData = dCalendarSheet.getDataRange().getValues();
-  const bReservationData = bReservationSheet.getDataRange().getValues();
-  const dReservationData = dReservationSheet.getDataRange().getValues();
-  const usersData = usersSheet.getDataRange().getValues();
-  
-  // メニューデータの取得（存在する場合）
-  let bMenuData = [];
-  let dMenuData = [];
-  
-  if (bMenuSheet) {
-    bMenuData = bMenuSheet.getDataRange().getValues();
-  }
-  
-  if (dMenuSheet) {
-    dMenuData = dMenuSheet.getDataRange().getValues();
-  }
-  
-  // ヘッダー行の列インデックスを取得
-  const bCalendarHeaders = bCalendarData[0];
-  const dCalendarHeaders = dCalendarData[0];
-  const bReservationHeaders = bReservationData[0];
-  const dReservationHeaders = dReservationData[0];
-  const usersHeaders = usersData[0];
-  
-  const bCalendarIdIndex = bCalendarHeaders.indexOf("b_calendar_id");
-  const bCalendarDateIndex = bCalendarHeaders.indexOf("date");
-  const bCalendarMenuIdIndex = bCalendarHeaders.indexOf("b_menu_id");
-  
-  const dCalendarIdIndex = dCalendarHeaders.indexOf("d_calendar_id");
-  const dCalendarDateIndex = dCalendarHeaders.indexOf("date");
-  const dCalendarMenuIdIndex = dCalendarHeaders.indexOf("d_menu_id");
+}
+
+function getMonthlyReservationCounts(year, month) {
   
   const bReservationCalendarIdIndex = bReservationHeaders.indexOf("b_calendar_id");
   const bReservationUserIdIndex = bReservationHeaders.indexOf("user_id");

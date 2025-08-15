@@ -31,6 +31,16 @@
     .menu-edit-inputs { display: flex; gap: 5px; }
     .menu-edit input { flex: 1; padding: 3px 5px; font-size: 0.8rem; }
     .menu-edit button { background-color: #4285f4; color: white; border: none; border-radius: 3px; padding: 3px 6px; font-size: 0.8rem; cursor: pointer; }
+    .recruitment-control { margin-top: 5px; text-align: center; }
+    .stop-button { padding: 4px 8px; font-size: 11px; border: none; border-radius: 3px; cursor: pointer; background-color: #dc3545; color: white; }
+    .stop-button:hover { background-color: #c82333; }
+    .stop-button.stopped { background-color: #28a745; }
+    .stop-button.stopped:hover { background-color: #218838; }
+    .recruitment-control { margin-top: 5px; text-align: center; }
+    .stop-button { padding: 4px 8px; font-size: 11px; border: none; border-radius: 3px; cursor: pointer; background-color: #dc3545; color: white; }
+    .stop-button:hover { background-color: #c82333; }
+    .stop-button.stopped { background-color: #28a745; }
+    .stop-button.stopped:hover { background-color: #218838; }
     .menu-history { width: 100%; overflow: hidden; }
     .menu-history-select { width: 100%; padding: 3px; font-size: 0.8rem; border: 1px solid #ddd; border-radius: 3px; }
     .unavailable { font-size: 0.8rem; color: #999; }
@@ -207,6 +217,13 @@
                     <button @click="updateMenu('breakfast', getBreakfastForDate(date).calendarId)">変更</button>
                   </div>
                 </div>
+                <!-- 募集停止ボタン -->
+                <div class="recruitment-control">
+                  <button @click="toggleRecruitmentStop(date, 'breakfast')" 
+                          :class="['stop-button', { 'stopped': isRecruitmentStopped(date, 'breakfast') }]">
+                    {{ isRecruitmentStopped(date, 'breakfast') ? '募集再開' : '募集停止' }}
+                  </button>
+                </div>
               </div>
               <div v-else class="meal-item">
                 <div class="meal-title">
@@ -238,6 +255,13 @@
                     <input type="text" v-model="dinnerMenuInputs[getDinnerForDate(date).calendarId]" placeholder="メニューを入力" >
                     <button @click="updateMenu('dinner', getDinnerForDate(date).calendarId)">変更</button>
                   </div>
+                </div>
+                <!-- 募集停止ボタン -->
+                <div class="recruitment-control">
+                  <button @click="toggleRecruitmentStop(date, 'dinner')" 
+                          :class="['stop-button', { 'stopped': isRecruitmentStopped(date, 'dinner') }]">
+                    {{ isRecruitmentStopped(date, 'dinner') ? '募集再開' : '募集停止' }}
+                  </button>
                 </div>
               </div>
               <div v-else-if="isSaturday(date)" class="meal-item">
@@ -279,7 +303,8 @@
         breakfastMenuInputs: {},
         dinnerMenuInputs: {},
         breakfastMenuList: [],
-        dinnerMenuList: []
+        dinnerMenuList: [],
+        recruitmentStops: {} // 募集停止情報を格納
       },
       computed: {
         isCurrentMonth: function() {
@@ -379,10 +404,21 @@
           this.calendarLoading = true;
           this.calendarLoaded = false;
           this.fetchMenuLists();
+          this.fetchRecruitmentStops();
           google.script.run
             .withSuccessHandler(this.processCalendarData)
             .withFailureHandler(this.handleCalendarError)
             .getMonthlyReservationCounts(this.currentYear, this.currentMonth);
+        },
+        fetchRecruitmentStops: function() {
+          google.script.run
+            .withSuccessHandler(response => {
+              if (response.success) {
+                this.recruitmentStops = response.stops;
+              }
+            })
+            .withFailureHandler(this.handleError)
+            .getRecruitmentStops(this.currentYear, this.currentMonth);
         },
         fetchMenuLists: function() {
           google.script.run
@@ -544,6 +580,28 @@
         },
         selectDinnerMenu(calendarId) {
             // Same as above
+        },
+        // 募集停止関連のメソッド
+        isRecruitmentStopped: function(date, mealType) {
+          return this.recruitmentStops[date] && this.recruitmentStops[date][mealType];
+        },
+        toggleRecruitmentStop: function(date, mealType) {
+          this.calendarLoading = true;
+          google.script.run
+            .withSuccessHandler(response => {
+              this.calendarLoading = false;
+              if (response.success) {
+                alert(response.message);
+                this.fetchRecruitmentStops();
+              } else {
+                alert('操作に失敗しました: ' + response.message);
+              }
+            })
+            .withFailureHandler(error => {
+              this.calendarLoading = false;
+              this.handleError(error);
+            })
+            .toggleRecruitmentStop(date, mealType, this.currentYear, this.currentMonth);
         },
       },
       mounted: function() {

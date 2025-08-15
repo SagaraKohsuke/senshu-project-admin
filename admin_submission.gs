@@ -43,7 +43,7 @@ function createMonthlySheet() {
   const newSheet = templateSheet.copyTo(mealSS);
   newSheet.setName(newSheetName);
   
-  // 作成したシートに初期データを設定
+  // 作成したシートに初期データを設定（ユーザー名のみ）
   try {
     const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
     const ss = SpreadsheetApp.openById(spreadsheetId);
@@ -60,15 +60,9 @@ function createMonthlySheet() {
         userIdToNameMap[usersData[i][userIdIndex]] = usersData[i][userNameIndex];
       }
       
-      // 名前を設定
+      // 名前のみ設定（テンプレートの関数はそのまま使用）
       updateUserNamesInSheet(newSheet, userIdToNameMap);
     }
-    
-    // ヘッダーと日付を設定
-    updateSheetHeader(newSheet, year, month);
-    
-    // 平日停止日の斜線を設定
-    applyDiagonalLinesForClosedDays(newSheet, year, month);
     
   } catch (e) {
     console.error('新しいシートの初期化中にエラーが発生しました: ' + e.message);
@@ -80,6 +74,7 @@ function createMonthlySheet() {
 /**
  * 毎日18:00に実行される関数（トリガー関数）
  * 当月のシートに予約データを更新
+ * ※ テンプレートの関数はそのまま使用し、ユーザー名設定と当日の予約データのみ更新
  */
 function updateDailyMealSheet() {
   const now = new Date();
@@ -119,7 +114,7 @@ function updateDailyMealSheet() {
       userIdToNameMap[usersData[i][userIdIndex]] = usersData[i][userNameIndex];
     }
 
-    // シートのユーザーIDに対応する名前を設定
+    // ユーザー名を設定（毎回更新）
     updateUserNamesInSheet(targetSheet, userIdToNameMap);
 
     // 月次の予約データを取得
@@ -129,36 +124,69 @@ function updateDailyMealSheet() {
       return;
     }
 
-    // ヘッダー情報（タイトルと日付）を更新
-    updateSheetHeader(targetSheet, year, month);
-
-    // 平日停止日の斜線を設定
-    applyDiagonalLinesForClosedDays(targetSheet, year, month);
-
     // 前半・後半ブロックごとにユーザーIDと行のマッピングを作成
     const userRowMap_1_16 = createUserRowMap(targetSheet, 5, 37);
     const userRowMap_17_31 = createUserRowMap(targetSheet, 45, 77);
 
-    // 既存の予約データをクリア（3列目以降）
-    clearExistingReservationData(targetSheet);
+    // 今日の日付を取得
+    const today = new Date();
+    const todayStr = formatDate(today);
+    const todayDayOfMonth = today.getDate();
 
-    // 予約データを書き込む
+    // 今日分のデータのみ更新
     const dataToUpdate = [];
     const { breakfast: breakfastReservations, dinner: dinnerReservations } = reservationData;
 
-    processReservations(breakfastReservations, false, userRowMap_1_16, userRowMap_17_31, dataToUpdate);
-    processReservations(dinnerReservations, true, userRowMap_1_16, userRowMap_17_31, dataToUpdate);
+    // 朝食の今日分のデータを処理
+    const todayBreakfast = breakfastReservations.find(item => item.date === todayStr);
+    if (todayBreakfast && todayBreakfast.users.length > 0) {
+      processSingleDayReservations(todayBreakfast, false, todayDayOfMonth, userRowMap_1_16, userRowMap_17_31, dataToUpdate);
+    }
+
+    // 夕食の今日分のデータを処理
+    const todayDinner = dinnerReservations.find(item => item.date === todayStr);
+    if (todayDinner && todayDinner.users.length > 0) {
+      processSingleDayReservations(todayDinner, true, todayDayOfMonth, userRowMap_1_16, userRowMap_17_31, dataToUpdate);
+    }
     
-    // データを一括更新
+    // 今日分のデータを更新
     dataToUpdate.forEach(data => {
       targetSheet.getRange(data.row, data.col).setValue(data.value);
     });
     
-    console.log(`${sheetName} の予約データを更新しました。`);
+    console.log(`${sheetName} の今日（${todayStr}）の予約データを更新しました。`);
 
   } catch (e) {
     console.error('updateDailyMealSheet Error: ' + e.message + " Stack: " + e.stack);
   }
+}
+
+/**
+ * 単一日の予約データを処理
+ */
+function processSingleDayReservations(dayData, isDinner, dayOfMonth, userRowMap_1_16, userRowMap_17_31, dataToUpdate) {
+  let userRowMap;
+  let relativeDay;
+
+  if (dayOfMonth <= 16) {
+    // 前半ブロックの場合
+    userRowMap = userRowMap_1_16;
+    relativeDay = dayOfMonth;
+  } else {
+    // 後半ブロックの場合
+    userRowMap = userRowMap_17_31;
+    relativeDay = dayOfMonth - 16;
+  }
+
+  // 1から始まる相対的な日付で列を計算する
+  const column = (relativeDay - 1) * 2 + (isDinner ? 4 : 3);
+
+  dayData.users.forEach(user => {
+    const userRow = userRowMap[user.userId];
+    if (userRow) {
+      dataToUpdate.push({row: userRow, col: column, value: 1});
+    }
+  });
 }
 
 /**
