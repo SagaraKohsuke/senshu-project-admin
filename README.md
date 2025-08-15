@@ -1,1 +1,0 @@
-# senshu-project-admin

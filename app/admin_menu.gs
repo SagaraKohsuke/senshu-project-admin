@@ -21,6 +21,40 @@ function updateMenuForCalendar(calendarId, mealType, menuName, year, month) {
     };
   }
   
+  // 朝食の場合、締切時間をチェック
+  if (mealType === "breakfast") {
+    const calendarData = calendarSheet.getDataRange().getValues();
+    const calendarHeaders = calendarData[0];
+    const calendarIdIndex = calendarHeaders.indexOf(`${prefix}_calendar_id`);
+    const dateIndex = calendarHeaders.indexOf("date");
+    
+    // カレンダーIDから対象の日付を取得
+    let targetDate = null;
+    for (let i = 1; i < calendarData.length; i++) {
+      if (calendarData[i][calendarIdIndex] == calendarId) {
+        targetDate = calendarData[i][dateIndex];
+        break;
+      }
+    }
+    
+    if (targetDate) {
+      const now = new Date();
+      const mealDate = new Date(targetDate);
+      
+      // 前日の14時を計算
+      const deadlineDate = new Date(mealDate);
+      deadlineDate.setDate(deadlineDate.getDate() - 1);
+      deadlineDate.setHours(14, 0, 0, 0);
+      
+      if (now > deadlineDate) {
+        return {
+          success: false,
+          message: "朝食のメニュー変更期限（前日14時）を過ぎているため、変更できません。"
+        };
+      }
+    }
+  }
+  
   // メニューシートがなければ作成
   if (!menuSheet) {
     if (mealType === "breakfast") {
