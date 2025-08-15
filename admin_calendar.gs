@@ -229,6 +229,155 @@ function generateMealSheet(year, month) {
 }
 
 /**
+ * テスト用：当日の朝食・夕食の記録を手動で作成する
+ * 本来は18:00に自動実行される処理
+ * @return {Object} 結果
+ */
+function testCreateDailyMealRecord() {
+  try {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    const day = today.getDate();
+    
+    console.log('=== テスト用 当日記録作成開始 ===');
+    console.log('対象日:', year + '年' + month + '月' + day + '日');
+    
+    const result = createDailyMealRecord(year, month, day);
+    
+    if (result.success) {
+      console.log('✅ 当日記録作成成功');
+      console.log('作成されたレコード:', result.records);
+    } else {
+      console.log('❌ 当日記録作成失敗:', result.message);
+    }
+    
+    return result;
+    
+  } catch (e) {
+    console.error('testCreateDailyMealRecord Error: ' + e.message);
+    return {
+      success: false,
+      message: 'テスト実行中にエラーが発生しました: ' + e.message
+    };
+  }
+}
+
+/**
+ * 指定日の朝食・夕食の記録を作成する
+ * @param {number} year 年
+ * @param {number} month 月
+ * @param {number} day 日
+ * @return {Object} 結果
+ */
+function createDailyMealRecord(year, month, day) {
+  try {
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
+    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const dateStr = year + "-" + (month < 10 ? "0" + month : month) + "-" + (day < 10 ? "0" + day : day);
+    const targetDate = new Date(year, month - 1, day);
+    const dayOfWeek = targetDate.getDay();
+    
+    console.log('記録作成対象:', {
+      yyyyMM: yyyyMM,
+      dateStr: dateStr,
+      dayOfWeek: dayOfWeek
+    });
+    
+    // 食事記録シート名
+    const mealRecordSheetName = "meal_records_" + yyyyMM;
+    
+    // 食事記録シートの取得または作成
+    let mealRecordSheet = ss.getSheetByName(mealRecordSheetName);
+    if (!mealRecordSheet) {
+      mealRecordSheet = ss.insertSheet(mealRecordSheetName);
+      // ヘッダー作成
+      const headers = ["record_id", "date", "meal_type", "user_id", "user_name", "created_at"];
+      mealRecordSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      mealRecordSheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
+    }
+    
+    // 予約データを取得
+    const reservationData = getMonthlyReservationCounts(year, month);
+    if (!reservationData.success) {
+      return {
+        success: false,
+        message: "予約データの取得に失敗しました: " + reservationData.message
+      };
+    }
+    
+    const records = [];
+    const timestamp = new Date();
+    
+    // 朝食の記録を作成
+    const breakfastData = reservationData.breakfast.find(item => item.date === dateStr);
+    if (breakfastData && breakfastData.users && Array.isArray(breakfastData.users)) {
+      for (const user of breakfastData.users) {
+        const recordId = "b_" + yyyyMM + "_" + (day < 10 ? "0" + day : day) + "_" + user.userId;
+        records.push([
+          recordId,
+          dateStr,
+          "breakfast",
+          user.userId,
+          user.userName,
+          timestamp
+        ]);
+      }
+    }
+    
+    // 夕食の記録を作成（土曜日以外）
+    if (dayOfWeek !== 6) {
+      const dinnerData = reservationData.dinner.find(item => item.date === dateStr);
+      if (dinnerData && dinnerData.users && Array.isArray(dinnerData.users)) {
+        for (const user of dinnerData.users) {
+          const recordId = "d_" + yyyyMM + "_" + (day < 10 ? "0" + day : day) + "_" + user.userId;
+          records.push([
+            recordId,
+            dateStr,
+            "dinner",
+            user.userId,
+            user.userName,
+            timestamp
+          ]);
+        }
+      }
+    }
+    
+    // 記録をシートに追加
+    if (records.length > 0) {
+      const lastRow = mealRecordSheet.getLastRow();
+      mealRecordSheet.getRange(lastRow + 1, 1, records.length, 6).setValues(records);
+      
+      console.log('記録作成完了:', {
+        totalRecords: records.length,
+        breakfastCount: records.filter(r => r[2] === "breakfast").length,
+        dinnerCount: records.filter(r => r[2] === "dinner").length
+      });
+    } else {
+      console.log('記録対象なし（予約がありません）');
+    }
+    
+    return {
+      success: true,
+      message: "食事記録を作成しました。",
+      date: dateStr,
+      recordsCreated: records.length,
+      records: records,
+      sheetName: mealRecordSheetName
+    };
+    
+  } catch (e) {
+    console.error('createDailyMealRecord Error: ' + e.message);
+    return {
+      success: false,
+      message: "食事記録作成中にエラーが発生しました: " + e.message
+    };
+  }
+}
+
+/**
  * 指定した日の募集状態を切り替える（is_activeフィールドを使用）
  * @param {string} date 対象日付 (YYYY-MM-DD形式)
  * @param {string} mealType 食事タイプ ("breakfast" または "dinner")
