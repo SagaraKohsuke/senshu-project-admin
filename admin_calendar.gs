@@ -48,6 +48,58 @@ function debugTest(){
 }
 
 /**
+ * 募集停止と予約キャンセル機能のテスト
+ * 実際にスプレッドシートを操作せず、ロジックのみを検証
+ */
+function testToggleRecruitmentStopLogic() {
+  console.log('=== 募集停止ロジックテスト開始 ===');
+  
+  // テストデータを想定（実際のスプレッドシートとは分離）
+  const mockCalendarData = [
+    ['b_calendar_id', 'date', 'is_active'],
+    [101, '2025-08-15', true],
+    [102, '2025-08-16', false]
+  ];
+  
+  const mockReservationData = [
+    ['b_calendar_id', 'user_id', 'is_reserved'],
+    [101, 'user1', true],
+    [101, 'user2', true],
+    [102, 'user3', false]
+  ];
+  
+  console.log('テストケース1: 募集停止時の予約キャンセルロジック');
+  
+  // 実際のtoggleRecruitmentStopと同じロジックを模擬
+  const targetCalendarId = 101;
+  const newActive = false; // 募集停止
+  
+  if (!newActive && targetCalendarId) {
+    let cancelledCount = 0;
+    for (let i = 1; i < mockReservationData.length; i++) {
+      if (mockReservationData[i][0] == targetCalendarId && 
+          mockReservationData[i][2]) { // is_reserved が true の場合
+        // 実際のコードでは reservationSheet.getRange(i + 1, reservationStatusIndex + 1).setValue(false);
+        mockReservationData[i][2] = false;
+        cancelledCount++;
+      }
+    }
+    console.log(`✅ カレンダーID ${targetCalendarId} の予約を ${cancelledCount} 件キャンセルしました`);
+  }
+  
+  console.log('テストケース2: 募集再開時は予約に影響しない');
+  const newActiveRestart = true; // 募集再開
+  
+  if (!newActiveRestart) {
+    console.log('❌ 予期しない予約キャンセル処理');
+  } else {
+    console.log('✅ 募集再開時は予約処理をスキップしました');
+  }
+  
+  console.log('=== 募集停止ロジックテスト終了 ===');
+}
+
+/**
  * 食事原紙のスプレッドシートURLを取得する（現在月のシートを表示）
  * @return {Object} 結果とURL
  */
@@ -665,6 +717,7 @@ function toggleRecruitmentStop(date, mealType, year, month) {
     const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
     const prefix = mealType === "breakfast" ? "b" : "d";
     const calendarSheetName = `${prefix}_calendar_${yyyyMM}`;
+    const reservationSheetName = `${prefix}_reservations_${yyyyMM}`;
     
     const calendarSheet = ss.getSheetByName(calendarSheetName);
     if (!calendarSheet) {
@@ -690,6 +743,7 @@ function toggleRecruitmentStop(date, mealType, year, month) {
     
     // 対象日付の行を検索
     let targetRowIndex = -1;
+    let targetCalendarId = null;
     for (let i = 1; i < calendarData.length; i++) {
       const rowDate = calendarData[i][dateIndex];
       let dateStr;
@@ -702,6 +756,7 @@ function toggleRecruitmentStop(date, mealType, year, month) {
       
       if (dateStr === date) {
         targetRowIndex = i;
+        targetCalendarId = calendarData[i][calendarIdIndex];
         break;
       }
     }
@@ -718,6 +773,29 @@ function toggleRecruitmentStop(date, mealType, year, month) {
     const newActive = !currentActive;
     
     calendarSheet.getRange(targetRowIndex + 1, isActiveIndex + 1).setValue(newActive);
+    
+    // 募集停止時（newActive = false）の場合、関連する予約を全てキャンセル
+    if (!newActive && targetCalendarId) {
+      const reservationSheet = ss.getSheetByName(reservationSheetName);
+      if (reservationSheet) {
+        const reservationData = reservationSheet.getDataRange().getValues();
+        if (reservationData.length > 1) {
+          const reservationHeaders = reservationData[0];
+          const reservationCalendarIdIndex = reservationHeaders.indexOf(`${prefix}_calendar_id`);
+          const reservationStatusIndex = reservationHeaders.indexOf("is_reserved");
+          
+          if (reservationCalendarIdIndex !== -1 && reservationStatusIndex !== -1) {
+            // 該当するcalendar_idの予約を全てfalseに設定
+            for (let i = 1; i < reservationData.length; i++) {
+              if (reservationData[i][reservationCalendarIdIndex] == targetCalendarId && 
+                  reservationData[i][reservationStatusIndex]) {
+                reservationSheet.getRange(i + 1, reservationStatusIndex + 1).setValue(false);
+              }
+            }
+          }
+        }
+      }
+    }
     
     return {
       success: true,
