@@ -7,13 +7,53 @@
   <title>朝夕食予約システム - 管理画面</title>
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <style>
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 10px; background-color: #f5f5f5; }
-    .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    /* Android font scaling fix */
+    *, *::before, *::after {
+      -webkit-text-size-adjust: 100% !important;
+      -moz-text-size-adjust: 100% !important;
+      -ms-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
+    }
+    
+    body { 
+      font-family: 'Helvetica Neue', Arial, sans-serif; 
+      margin: 0; 
+      padding: 10px; 
+      background-color: #f5f5f5;
+      -webkit-text-size-adjust: 100% !important;
+      -moz-text-size-adjust: 100% !important;
+      -ms-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
+    }
+    .container { 
+      max-width: 1200px; 
+      margin: 0 auto; 
+      background-color: white; 
+      padding: 15px; 
+      border-radius: 8px; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      -webkit-text-size-adjust: 100% !important;
+      -moz-text-size-adjust: 100% !important;
+      -ms-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
+    }
     h1 { color: #333; margin-top: 0; font-size: 1.5rem; }
     h2.month-header { color: #2c3e50; text-align: center; margin: 20px 0 15px; }
     .form-group { margin-bottom: 15px; }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
-    select, input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; background-color: white; font-size: 16px; box-sizing: border-box; }
+    select, input { 
+      width: 100%; 
+      padding: 12px; 
+      border: 1px solid #ddd; 
+      border-radius: 4px; 
+      background-color: white; 
+      font-size: 16px !important; 
+      box-sizing: border-box;
+      -webkit-text-size-adjust: 100% !important;
+      -moz-text-size-adjust: 100% !important;
+      -ms-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
+    }
     .loading { display: flex; justify-content: center; padding: 20px; color: #666; }
     
     /* カレンダースタイル - スマホ最適化 */
@@ -44,7 +84,20 @@
     
     /* ナビゲーション - スマホ対応 */
     .month-navigation { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 20px; flex-wrap: wrap; gap: 10px; }
-    .month-navigation button { background-color: #4285f4; color: white; border: none; border-radius: 4px; padding: 10px 15px; cursor: pointer; font-size: 14px; min-width: 120px; }
+    .month-navigation button { 
+      background-color: #4285f4; 
+      color: white; 
+      border: none; 
+      border-radius: 4px; 
+      padding: 10px 15px; 
+      cursor: pointer; 
+      font-size: 14px !important; 
+      min-width: 120px;
+      -webkit-text-size-adjust: 100% !important;
+      -moz-text-size-adjust: 100% !important;
+      -ms-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
+    }
     .month-navigation button:disabled { background-color: #b0bec5; cursor: not-allowed; }
     .month-navigation h3 { margin: 0 10px; font-size: 1.1rem; }
     
