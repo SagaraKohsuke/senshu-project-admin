@@ -211,13 +211,13 @@
 
       <div class="summary-section" v-if="isCurrentMonth">
         <div class="summary-title">
-          本日・明日の予約状況
+          {{ reservationStatusTitle }}
         </div>
         <div class="reservation-grid">
           <!-- 今日の朝食 -->
           <div class="reservation-card">
             <div class="reservation-card-header today-breakfast">
-              今日の朝食
+              {{ todayDateJapanese }}朝食
             </div>
             <div class="reservation-count">
               {{ todayBreakfastCount }}食
@@ -235,7 +235,7 @@
           <!-- 今日の夕食 -->
           <div class="reservation-card">
             <div class="reservation-card-header today-dinner">
-              今日の夕食
+              {{ todayDateJapanese }}夕食
             </div>
             <div class="reservation-count">
               {{ todayDinnerCount }}食
@@ -253,7 +253,7 @@
           <!-- 明日の朝食 -->
           <div class="reservation-card">
             <div class="reservation-card-header tomorrow-breakfast">
-              明日の朝食
+              {{ tomorrowDateJapanese }}朝食
             </div>
             <div class="reservation-count">
               {{ tomorrowBreakfastCount }}食
@@ -271,7 +271,7 @@
           <!-- 明日の夕食 -->
           <div class="reservation-card">
             <div class="reservation-card-header tomorrow-dinner">
-              明日の夕食
+              {{ tomorrowDateJapanese }}夕食
             </div>
             <div v-if="!isTomorrowSaturday" class="reservation-count">
               {{ tomorrowDinnerCount }}食
@@ -516,6 +516,21 @@
           const tomorrow = new Date();
           tomorrow.setDate(tomorrow.getDate() + 1);
           return tomorrow.getDay() === 6;
+        },
+        // 今日の日付（日本語表示）
+        todayDateJapanese: function() {
+          const today = new Date();
+          return this.formatDateJapanese(today);
+        },
+        // 明日の日付（日本語表示）
+        tomorrowDateJapanese: function() {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return this.formatDateJapanese(tomorrow);
+        },
+        // セクションタイトル用の日付範囲
+        reservationStatusTitle: function() {
+          return `${this.todayDateJapanese}・${this.tomorrowDateJapanese}の予約状況`;
         }
       },
       methods: {
@@ -662,6 +677,11 @@
           const month = (date.getMonth() + 1).toString().padStart(2, "0");
           const day = date.getDate().toString().padStart(2, "0");
           return `${year}-${month}-${day}`;
+        },
+        formatDateJapanese: function(date) {
+          const month = date.getMonth() + 1;
+          const day = date.getDate();
+          return `${month}月${day}日`;
         },
         handleCalendarError: function(error) {
           console.error('カレンダーデータの取得中にエラーが発生しました:', error);
