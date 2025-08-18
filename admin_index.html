@@ -309,7 +309,7 @@
                   メニュー: {{ getBreakfastForDate(date).menuName }}
                 </div>
                 <!-- メニュー編集 -->
-                <div class="menu-edit">
+                <div class="menu-edit" v-if="!isRecruitmentStopped(date, 'breakfast')">
                   <div class="menu-history">
                     <select class="menu-history-select" v-model="breakfastMenuInputs[getBreakfastForDate(date).calendarId]" @change="selectBreakfastMenu(getBreakfastForDate(date).calendarId)">
                       <option value="">-- メニューを選択 --</option>
@@ -332,7 +332,7 @@
                           :class="['stop-button', { 'stopped': isRecruitmentStopped(date, 'breakfast') }]"
                           :disabled="recruitmentToggleLoading">
                     <span v-if="recruitmentToggleLoading">処理中...</span>
-                    <span v-else>{{ isRecruitmentStopped(date, 'breakfast') ? '募集再開' : '募集停止' }}</span>
+                    <span v-else>{{ isRecruitmentStopped(date, 'breakfast') ? '休みを解除する' : '休みにする' }}</span>
                   </button>
                 </div>
               </div>
@@ -353,7 +353,7 @@
                 <div class="menu">
                   メニュー: {{ getDinnerForDate(date).menuName }}
                 </div>
-                <div class="menu-edit">
+                <div class="menu-edit" v-if="!isRecruitmentStopped(date, 'dinner')">
                   <div class="menu-history">
                     <select class="menu-history-select" v-model="dinnerMenuInputs[getDinnerForDate(date).calendarId]" @change="selectDinnerMenu(getDinnerForDate(date).calendarId)">
                       <option value="">-- メニューを選択 --</option>
@@ -376,7 +376,7 @@
                           :class="['stop-button', { 'stopped': isRecruitmentStopped(date, 'dinner') }]"
                           :disabled="recruitmentToggleLoading">
                     <span v-if="recruitmentToggleLoading">処理中...</span>
-                    <span v-else>{{ isRecruitmentStopped(date, 'dinner') ? '募集再開' : '募集停止' }}</span>
+                    <span v-else>{{ isRecruitmentStopped(date, 'dinner') ? '休みを解除する' : '休みにする' }}</span>
                   </button>
                 </div>
               </div>
