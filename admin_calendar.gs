@@ -722,7 +722,7 @@ function toggleRecruitmentStop(date, mealType, year, month) {
     return {
       success: true,
       isActive: newActive,
-      message: newActive ? "募集を再開しました" : "募集を停止しました"
+      message: newActive ? "休みを解除しました" : "休みにしました"
     };
     
   } catch (e) {
