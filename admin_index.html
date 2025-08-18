@@ -305,7 +305,7 @@
                   <strong>朝食</strong>
                   <span class="meal-count">{{ getBreakfastForDate(date).count }}食</span>
                 </div>
-                <div class="menu">
+                <div class="menu" v-if="!isRecruitmentStopped(date, 'breakfast')">
                   メニュー: {{ getBreakfastForDate(date).menuName }}
                 </div>
                 <!-- メニュー編集 -->
@@ -350,7 +350,7 @@
                   <strong>夕食</strong>
                   <span class="meal-count">{{ getDinnerForDate(date).count }}食</span>
                 </div>
-                <div class="menu">
+                <div class="menu" v-if="!isRecruitmentStopped(date, 'dinner')">
                   メニュー: {{ getDinnerForDate(date).menuName }}
                 </div>
                 <div class="menu-edit" v-if="!isRecruitmentStopped(date, 'dinner')">
