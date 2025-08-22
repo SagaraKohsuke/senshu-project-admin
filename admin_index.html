@@ -1058,11 +1058,8 @@
           this.breakfastSelectedIndex = -1;
         },
         filterBreakfastMenus: function() {
-          const breakfast = this.getBreakfastForDate(this.selectedDate);
-          const isUnset = breakfast && breakfast.menuName === '未設定';
-          
-          if (!this.editBreakfastMenu || this.editBreakfastMenu.trim() === '' || isUnset) {
-            this.filteredBreakfastMenus = this.breakfastMenuList.slice(0, 10); // Show first 10 when empty or unset
+          if (!this.editBreakfastMenu || this.editBreakfastMenu.trim() === '') {
+            this.filteredBreakfastMenus = this.breakfastMenuList.slice(0, 10); // Show first 10 when empty
           } else {
             const searchTerm = this.editBreakfastMenu.toLowerCase().trim();
             this.filteredBreakfastMenus = this.breakfastMenuList.filter(menu => 
@@ -1125,11 +1122,8 @@
           this.dinnerSelectedIndex = -1;
         },
         filterDinnerMenus: function() {
-          const dinner = this.getDinnerForDate(this.selectedDate);
-          const isUnset = dinner && dinner.menuName === '未設定';
-          
-          if (!this.editDinnerMenu || this.editDinnerMenu.trim() === '' || isUnset) {
-            this.filteredDinnerMenus = this.dinnerMenuList.slice(0, 10); // Show first 10 when empty or unset
+          if (!this.editDinnerMenu || this.editDinnerMenu.trim() === '') {
+            this.filteredDinnerMenus = this.dinnerMenuList.slice(0, 10); // Show first 10 when empty
           } else {
             const searchTerm = this.editDinnerMenu.toLowerCase().trim();
             this.filteredDinnerMenus = this.dinnerMenuList.filter(menu => 
