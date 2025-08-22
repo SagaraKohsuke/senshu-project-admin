@@ -139,30 +139,48 @@
       color: #6c757d; 
       font-style: italic; 
     }
-    .menu-select-section { 
-      margin-bottom: 15px; 
-    }
-    .menu-select-section label { 
-      display: block; 
-      margin-bottom: 5px; 
-      font-weight: bold; 
-      color: #495057; 
-    }
     .menu-input-section { 
       display: flex; 
       gap: 10px; 
       align-items: flex-end; 
     }
-    .menu-input-group { 
-      flex: 1; 
+    .autocomplete-container {
+      position: relative;
+      flex: 1;
     }
-    .menu-input-group label { 
+    .autocomplete-suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ced4da;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .autocomplete-suggestion {
+      padding: 8px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #f8f9fa;
+    }
+    .autocomplete-suggestion:hover,
+    .autocomplete-suggestion.selected {
+      background-color: #e9ecef;
+    }
+    .autocomplete-suggestion:last-child {
+      border-bottom: none;
+    }
+    .autocomplete-container label { 
       display: block; 
       margin-bottom: 5px; 
       font-weight: bold; 
       color: #495057; 
     }
-    .menu-input-group input { 
+    .autocomplete-container input { 
       width: 100%; 
       padding: 8px 12px; 
       border: 1px solid #ced4da; 
@@ -441,18 +459,28 @@
               <div class="current-menu-text">{{ getBreakfastForDate(selectedDate).menuName || '未設定' }}</div>
             </div>
             
-            <div class="menu-select-section">
-              <label>過去のメニューから選択:</label>
-              <select v-model="selectedBreakfastMenu" @change="selectBreakfastMenuFromHistory">
-                <option value="">-- メニューを選択 --</option>
-                <option v-for="menu in breakfastMenuList" :key="menu" :value="menu">{{ menu }}</option>
-              </select>
-            </div>
-            
             <div class="menu-input-section">
-              <div class="menu-input-group">
-                <label>新しいメニュー:</label>
-                <input type="text" v-model="editBreakfastMenu" placeholder="メニューを入力してください">
+              <div class="autocomplete-container">
+                <label>メニューを入力:</label>
+                <input type="text" 
+                       v-model="editBreakfastMenu" 
+                       @input="onBreakfastMenuInput"
+                       @keydown="onBreakfastKeydown"
+                       @blur="hideBreakfastSuggestions"
+                       @focus="showBreakfastSuggestions"
+                       placeholder="メニューを入力してください（頭文字で予測表示）"
+                       autocomplete="off">
+                <div v-if="showBreakfastSuggestionsList && filteredBreakfastMenus.length > 0" 
+                     class="autocomplete-suggestions">
+                  <div v-for="(menu, index) in filteredBreakfastMenus" 
+                       :key="menu" 
+                       class="autocomplete-suggestion"
+                       :class="{ selected: breakfastSelectedIndex === index }"
+                       @mousedown="selectBreakfastMenu(menu)"
+                       @mouseenter="breakfastSelectedIndex = index">
+                    {{ menu }}
+                  </div>
+                </div>
               </div>
               <button class="menu-update-btn" @click="updateSelectedMenu('breakfast')" :disabled="menuUpdateLoading">
                 <span v-if="menuUpdateLoading">更新中...</span>
@@ -486,18 +514,28 @@
               <div class="current-menu-text">{{ getDinnerForDate(selectedDate).menuName || '未設定' }}</div>
             </div>
             
-            <div class="menu-select-section">
-              <label>過去のメニューから選択:</label>
-              <select v-model="selectedDinnerMenu" @change="selectDinnerMenuFromHistory">
-                <option value="">-- メニューを選択 --</option>
-                <option v-for="menu in dinnerMenuList" :key="menu" :value="menu">{{ menu }}</option>
-              </select>
-            </div>
-            
             <div class="menu-input-section">
-              <div class="menu-input-group">
-                <label>新しいメニュー:</label>
-                <input type="text" v-model="editDinnerMenu" placeholder="メニューを入力してください">
+              <div class="autocomplete-container">
+                <label>メニューを入力:</label>
+                <input type="text" 
+                       v-model="editDinnerMenu" 
+                       @input="onDinnerMenuInput"
+                       @keydown="onDinnerKeydown"
+                       @blur="hideDinnerSuggestions"
+                       @focus="showDinnerSuggestions"
+                       placeholder="メニューを入力してください（頭文字で予測表示）"
+                       autocomplete="off">
+                <div v-if="showDinnerSuggestionsList && filteredDinnerMenus.length > 0" 
+                     class="autocomplete-suggestions">
+                  <div v-for="(menu, index) in filteredDinnerMenus" 
+                       :key="menu" 
+                       class="autocomplete-suggestion"
+                       :class="{ selected: dinnerSelectedIndex === index }"
+                       @mousedown="selectDinnerMenu(menu)"
+                       @mouseenter="dinnerSelectedIndex = index">
+                    {{ menu }}
+                  </div>
+                </div>
               </div>
               <button class="menu-update-btn" @click="updateSelectedMenu('dinner')" :disabled="menuUpdateLoading">
                 <span v-if="menuUpdateLoading">更新中...</span>
@@ -613,8 +651,13 @@
         selectedDate: null, // 選択された日付
         editBreakfastMenu: '', // 編集中の朝食メニュー
         editDinnerMenu: '', // 編集中の夕食メニュー
-        selectedBreakfastMenu: '', // 選択された朝食メニュー
-        selectedDinnerMenu: '' // 選択された夕食メニュー
+        // Autocomplete functionality
+        showBreakfastSuggestionsList: false, // 朝食の予測候補リスト表示フラグ
+        showDinnerSuggestionsList: false, // 夕食の予測候補リスト表示フラグ
+        filteredBreakfastMenus: [], // フィルタされた朝食メニューリスト
+        filteredDinnerMenus: [], // フィルタされた夕食メニューリスト
+        breakfastSelectedIndex: -1, // 朝食の選択中インデックス
+        dinnerSelectedIndex: -1 // 夕食の選択中インデックス
       },
       computed: {
         isCurrentMonth: function() {
@@ -903,8 +946,11 @@
           this.selectedDate = null;
           this.editBreakfastMenu = '';
           this.editDinnerMenu = '';
-          this.selectedBreakfastMenu = '';
-          this.selectedDinnerMenu = '';
+          // Reset autocomplete states
+          this.showBreakfastSuggestionsList = false;
+          this.showDinnerSuggestionsList = false;
+          this.breakfastSelectedIndex = -1;
+          this.dinnerSelectedIndex = -1;
           this.loadCalendarData();
         },
         nextMonth: function() {
@@ -918,8 +964,11 @@
           this.selectedDate = null;
           this.editBreakfastMenu = '';
           this.editDinnerMenu = '';
-          this.selectedBreakfastMenu = '';
-          this.selectedDinnerMenu = '';
+          // Reset autocomplete states
+          this.showBreakfastSuggestionsList = false;
+          this.showDinnerSuggestionsList = false;
+          this.breakfastSelectedIndex = -1;
+          this.dinnerSelectedIndex = -1;
           this.loadCalendarData();
         },
         // --- ★ ここがスプレッドシートを開く処理 ---
@@ -996,17 +1045,137 @@
           this.selectedDate = null;
           this.editBreakfastMenu = '';
           this.editDinnerMenu = '';
-          this.selectedBreakfastMenu = '';
-          this.selectedDinnerMenu = '';
+          // Reset autocomplete states
+          this.showBreakfastSuggestionsList = false;
+          this.showDinnerSuggestionsList = false;
+          this.breakfastSelectedIndex = -1;
+          this.dinnerSelectedIndex = -1;
         },
-        selectBreakfastMenuFromHistory: function() {
-          if (this.selectedBreakfastMenu) {
-            this.editBreakfastMenu = this.selectedBreakfastMenu;
+        // Autocomplete functionality for breakfast menu
+        onBreakfastMenuInput: function() {
+          this.filterBreakfastMenus();
+          this.showBreakfastSuggestionsList = true;
+          this.breakfastSelectedIndex = -1;
+        },
+        filterBreakfastMenus: function() {
+          if (!this.editBreakfastMenu || this.editBreakfastMenu.trim() === '') {
+            this.filteredBreakfastMenus = this.breakfastMenuList.slice(0, 10); // Show first 10 when empty
+          } else {
+            const searchTerm = this.editBreakfastMenu.toLowerCase().trim();
+            this.filteredBreakfastMenus = this.breakfastMenuList.filter(menu => 
+              menu.toLowerCase().includes(searchTerm)
+            ).slice(0, 10); // Limit to 10 suggestions
           }
         },
-        selectDinnerMenuFromHistory: function() {
-          if (this.selectedDinnerMenu) {
-            this.editDinnerMenu = this.selectedDinnerMenu;
+        showBreakfastSuggestions: function() {
+          // 現在のメニューが「未設定」の場合、入力フィールドをクリア
+          const breakfast = this.getBreakfastForDate(this.selectedDate);
+          if (breakfast && breakfast.menuName === '未設定') {
+            this.editBreakfastMenu = '';
+          }
+          this.filterBreakfastMenus();
+          this.showBreakfastSuggestionsList = true;
+        },
+        hideBreakfastSuggestions: function() {
+          // Add small delay to allow selection
+          setTimeout(() => {
+            this.showBreakfastSuggestionsList = false;
+            this.breakfastSelectedIndex = -1;
+          }, 150);
+        },
+        selectBreakfastMenu: function(menu) {
+          this.editBreakfastMenu = menu;
+          this.showBreakfastSuggestionsList = false;
+          this.breakfastSelectedIndex = -1;
+        },
+        onBreakfastKeydown: function(event) {
+          if (!this.showBreakfastSuggestionsList || this.filteredBreakfastMenus.length === 0) {
+            return;
+          }
+          
+          switch (event.key) {
+            case 'ArrowDown':
+              event.preventDefault();
+              this.breakfastSelectedIndex = Math.min(this.breakfastSelectedIndex + 1, this.filteredBreakfastMenus.length - 1);
+              break;
+            case 'ArrowUp':
+              event.preventDefault();
+              this.breakfastSelectedIndex = Math.max(this.breakfastSelectedIndex - 1, -1);
+              break;
+            case 'Enter':
+              event.preventDefault();
+              if (this.breakfastSelectedIndex >= 0) {
+                this.selectBreakfastMenu(this.filteredBreakfastMenus[this.breakfastSelectedIndex]);
+              }
+              break;
+            case 'Escape':
+              this.showBreakfastSuggestionsList = false;
+              this.breakfastSelectedIndex = -1;
+              break;
+          }
+        },
+        
+        // Autocomplete functionality for dinner menu
+        onDinnerMenuInput: function() {
+          this.filterDinnerMenus();
+          this.showDinnerSuggestionsList = true;
+          this.dinnerSelectedIndex = -1;
+        },
+        filterDinnerMenus: function() {
+          if (!this.editDinnerMenu || this.editDinnerMenu.trim() === '') {
+            this.filteredDinnerMenus = this.dinnerMenuList.slice(0, 10); // Show first 10 when empty
+          } else {
+            const searchTerm = this.editDinnerMenu.toLowerCase().trim();
+            this.filteredDinnerMenus = this.dinnerMenuList.filter(menu => 
+              menu.toLowerCase().includes(searchTerm)
+            ).slice(0, 10); // Limit to 10 suggestions
+          }
+        },
+        showDinnerSuggestions: function() {
+          // 現在のメニューが「未設定」の場合、入力フィールドをクリア
+          const dinner = this.getDinnerForDate(this.selectedDate);
+          if (dinner && dinner.menuName === '未設定') {
+            this.editDinnerMenu = '';
+          }
+          this.filterDinnerMenus();
+          this.showDinnerSuggestionsList = true;
+        },
+        hideDinnerSuggestions: function() {
+          // Add small delay to allow selection
+          setTimeout(() => {
+            this.showDinnerSuggestionsList = false;
+            this.dinnerSelectedIndex = -1;
+          }, 150);
+        },
+        selectDinnerMenu: function(menu) {
+          this.editDinnerMenu = menu;
+          this.showDinnerSuggestionsList = false;
+          this.dinnerSelectedIndex = -1;
+        },
+        onDinnerKeydown: function(event) {
+          if (!this.showDinnerSuggestionsList || this.filteredDinnerMenus.length === 0) {
+            return;
+          }
+          
+          switch (event.key) {
+            case 'ArrowDown':
+              event.preventDefault();
+              this.dinnerSelectedIndex = Math.min(this.dinnerSelectedIndex + 1, this.filteredDinnerMenus.length - 1);
+              break;
+            case 'ArrowUp':
+              event.preventDefault();
+              this.dinnerSelectedIndex = Math.max(this.dinnerSelectedIndex - 1, -1);
+              break;
+            case 'Enter':
+              event.preventDefault();
+              if (this.dinnerSelectedIndex >= 0) {
+                this.selectDinnerMenu(this.filteredDinnerMenus[this.dinnerSelectedIndex]);
+              }
+              break;
+            case 'Escape':
+              this.showDinnerSuggestionsList = false;
+              this.dinnerSelectedIndex = -1;
+              break;
           }
         },
         updateSelectedMenu: function(mealType) {
@@ -1051,11 +1220,13 @@
               targetMenuList.push(menuName);
               targetMenuList.sort();
             }
-            // プルダウンをリセット
+            // Reset autocomplete states
             if (mealType === 'breakfast') {
-              this.selectedBreakfastMenu = '';
+              this.showBreakfastSuggestionsList = false;
+              this.breakfastSelectedIndex = -1;
             } else {
-              this.selectedDinnerMenu = '';
+              this.showDinnerSuggestionsList = false;
+              this.dinnerSelectedIndex = -1;
             }
           } else {
             alert('メニューの更新に失敗しました: ' + response.message);
@@ -1105,8 +1276,11 @@
           
           this.editBreakfastMenu = breakfast && breakfast.menuName !== '未設定' ? breakfast.menuName : '';
           this.editDinnerMenu = dinner && dinner.menuName !== '未設定' ? dinner.menuName : '';
-          this.selectedBreakfastMenu = '';
-          this.selectedDinnerMenu = '';
+          // Reset autocomplete states
+          this.showBreakfastSuggestionsList = false;
+          this.showDinnerSuggestionsList = false;
+          this.breakfastSelectedIndex = -1;
+          this.dinnerSelectedIndex = -1;
         },
       },
       mounted: function() {
