@@ -776,6 +776,9 @@
             
             this.initializeMenuInputs();
             this.calendarLoaded = true;
+            
+            // カレンダーデータが読み込まれた後に適切な日付を選択
+            this.setInitialSelectedDate();
           } else {
             const errorMessage = data && data.message ? data.message : 'データの取得に失敗しました';
             console.error('❌ データ処理エラー:', errorMessage);
@@ -896,6 +899,12 @@
           } else {
             this.currentMonth--;
           }
+          // 月切り替え時は選択をクリア
+          this.selectedDate = null;
+          this.editBreakfastMenu = '';
+          this.editDinnerMenu = '';
+          this.selectedBreakfastMenu = '';
+          this.selectedDinnerMenu = '';
           this.loadCalendarData();
         },
         nextMonth: function() {
@@ -905,6 +914,12 @@
           } else {
             this.currentMonth++;
           }
+          // 月切り替え時は選択をクリア
+          this.selectedDate = null;
+          this.editBreakfastMenu = '';
+          this.editDinnerMenu = '';
+          this.selectedBreakfastMenu = '';
+          this.selectedDinnerMenu = '';
           this.loadCalendarData();
         },
         // --- ★ ここがスプレッドシートを開く処理 ---
@@ -975,14 +990,7 @@
         // 新しいメニュー編集メソッド
         selectDate: function(date) {
           this.selectedDate = date;
-          // 選択された日付のメニュー情報を編集フィールドに設定
-          const breakfast = this.getBreakfastForDate(date);
-          const dinner = this.getDinnerForDate(date);
-          
-          this.editBreakfastMenu = breakfast && breakfast.menuName !== '未設定' ? breakfast.menuName : '';
-          this.editDinnerMenu = dinner && dinner.menuName !== '未設定' ? dinner.menuName : '';
-          this.selectedBreakfastMenu = '';
-          this.selectedDinnerMenu = '';
+          this.updateEditMenus(date);
         },
         closeMenuEdit: function() {
           this.selectedDate = null;
@@ -1074,12 +1082,35 @@
             })
             .toggleRecruitmentStop(this.selectedDate, mealType, this.currentYear, this.currentMonth);
         },
+        // 初期選択日付を設定するメソッド
+        setInitialSelectedDate: function() {
+          const today = this.formatDate(new Date());
+          
+          // 今日の日付が現在表示中の月に含まれている場合は今日を選択
+          if (this.monthDates && this.monthDates.includes(today)) {
+            this.selectedDate = today;
+            this.updateEditMenus(today);
+          } else {
+            // 今日が現在の月に含まれていない場合は、その月の最初の日を選択
+            if (this.monthDates && this.monthDates.length > 0) {
+              this.selectedDate = this.monthDates[0];
+              this.updateEditMenus(this.monthDates[0]);
+            }
+          }
+        },
+        // 選択された日付のメニュー情報を編集フィールドに更新
+        updateEditMenus: function(date) {
+          const breakfast = this.getBreakfastForDate(date);
+          const dinner = this.getDinnerForDate(date);
+          
+          this.editBreakfastMenu = breakfast && breakfast.menuName !== '未設定' ? breakfast.menuName : '';
+          this.editDinnerMenu = dinner && dinner.menuName !== '未設定' ? dinner.menuName : '';
+          this.selectedBreakfastMenu = '';
+          this.selectedDinnerMenu = '';
+        },
       },
       mounted: function() {
         this.loadCalendarData();
-        // 初期表示で今日の日付を選択
-        const today = this.formatDate(new Date());
-        this.selectedDate = today;
       }
     });
   </script>
