@@ -59,28 +59,153 @@
     /* カレンダースタイル - スマホ最適化 */
     .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 20px; }
     .weekday-header { text-align: center; font-weight: bold; padding: 8px 4px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9rem; }
-    .calendar-cell { min-height: 140px; border: 1px solid #ddd; border-radius: 4px; padding: 4px; background-color: white; overflow: hidden; }
+    .calendar-cell { min-height: 100px; border: 1px solid #ddd; border-radius: 4px; padding: 4px; background-color: white; overflow: hidden; cursor: pointer; transition: all 0.2s ease; }
+    .calendar-cell:hover { background-color: #f8f9fa; }
     .calendar-cell.today { background-color: #fff8e1; border-color: #ffca28; }
-    .empty-cell { background-color: #f9f9f9; }
+    .calendar-cell.selected { background-color: #e3f2fd; border-color: #2196f3; border-width: 2px; }
+    .empty-cell { background-color: #f9f9f9; cursor: default; }
+    .empty-cell:hover { background-color: #f9f9f9; }
     .date-header { font-weight: bold; text-align: right; border-bottom: 1px solid #eee; padding-bottom: 3px; margin-bottom: 5px; font-size: 0.9rem; }
     .meal-section { font-size: 0.75rem; }
     .meal-item { margin-bottom: 4px; }
     .meal-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
     .meal-count { display: inline-block; background-color: #4285f4; color: white; padding: 1px 6px; border-radius: 8px; font-size: 0.7rem; font-weight: bold; }
-    .menu { font-size: 0.7rem !important; color: #555; padding-left: 3px; margin-bottom: 3px; line-height: 1.1; }
-    .menu-edit { display: flex; flex-direction: column; gap: 3px; margin-bottom: 4px; }
-    .menu-edit-inputs { display: flex; gap: 3px; }
-    .menu-edit input { flex: 1; padding: 4px; font-size: 0.7rem; min-height: 20px; }
-    .menu-edit button { background-color: #4285f4; color: white; border: none; border-radius: 3px; padding: 4px 6px; font-size: 0.7rem; cursor: pointer; white-space: nowrap; }
+    .menu-display { font-size: 0.7rem !important; color: #555; padding-left: 3px; margin-bottom: 3px; line-height: 1.1; }
     .recruitment-control { margin-top: 4px; text-align: center; }
     .stop-button { padding: 3px 6px; font-size: 0.65rem; border: none; border-radius: 3px; cursor: pointer; background-color: #dc3545; color: white; }
     .stop-button:hover { background-color: #c82333; }
     .stop-button.stopped { background-color: #28a745; }
     .stop-button.stopped:hover { background-color: #218838; }
-    .menu-history { width: 100%; overflow: hidden; }
-    .menu-history-select { width: 100%; padding: 2px; font-size: 0.7rem; border: 1px solid #ddd; border-radius: 3px; }
     .unavailable { font-size: 0.7rem; color: #999; }
     hr { margin: 6px 0; border: none; border-top: 1px dotted #ddd; }
+    
+    /* メニュー編集エリア */
+    .menu-edit-area { 
+      background-color: #f8f9fa; 
+      border: 1px solid #dee2e6; 
+      border-radius: 8px; 
+      padding: 20px; 
+      margin-bottom: 20px; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .menu-edit-header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 15px; 
+      border-bottom: 2px solid #dee2e6; 
+      padding-bottom: 10px; 
+    }
+    .menu-edit-date { 
+      font-size: 1.2rem; 
+      font-weight: bold; 
+      color: #2c3e50; 
+    }
+    .menu-edit-close { 
+      background: none; 
+      border: none; 
+      font-size: 1.5rem; 
+      cursor: pointer; 
+      color: #6c757d; 
+      padding: 5px; 
+    }
+    .menu-edit-close:hover { color: #dc3545; }
+    .meal-edit-section { 
+      margin-bottom: 20px; 
+      padding: 15px; 
+      background-color: white; 
+      border-radius: 6px; 
+      border-left: 4px solid #4285f4; 
+    }
+    .meal-edit-section.dinner { border-left-color: #e74c3c; }
+    .meal-edit-title { 
+      font-size: 1.1rem; 
+      font-weight: bold; 
+      margin-bottom: 10px; 
+      color: #2c3e50; 
+    }
+    .current-menu { 
+      margin-bottom: 15px; 
+      padding: 10px; 
+      background-color: #e9ecef; 
+      border-radius: 4px; 
+    }
+    .current-menu-label { 
+      font-weight: bold; 
+      margin-bottom: 5px; 
+      color: #495057; 
+    }
+    .current-menu-text { 
+      color: #6c757d; 
+      font-style: italic; 
+    }
+    .menu-select-section { 
+      margin-bottom: 15px; 
+    }
+    .menu-select-section label { 
+      display: block; 
+      margin-bottom: 5px; 
+      font-weight: bold; 
+      color: #495057; 
+    }
+    .menu-input-section { 
+      display: flex; 
+      gap: 10px; 
+      align-items: flex-end; 
+    }
+    .menu-input-group { 
+      flex: 1; 
+    }
+    .menu-input-group label { 
+      display: block; 
+      margin-bottom: 5px; 
+      font-weight: bold; 
+      color: #495057; 
+    }
+    .menu-input-group input { 
+      width: 100%; 
+      padding: 8px 12px; 
+      border: 1px solid #ced4da; 
+      border-radius: 4px; 
+      font-size: 14px; 
+    }
+    .menu-update-btn { 
+      background-color: #28a745; 
+      color: white; 
+      border: none; 
+      border-radius: 4px; 
+      padding: 8px 20px; 
+      font-size: 14px; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      height: fit-content; 
+    }
+    .menu-update-btn:hover { background-color: #218838; }
+    .menu-update-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+    .recruitment-toggle-section { 
+      text-align: center; 
+      padding-top: 10px; 
+      border-top: 1px solid #dee2e6; 
+      margin-top: 10px; 
+    }
+    .recruitment-toggle-btn { 
+      padding: 8px 16px; 
+      font-size: 14px; 
+      border: none; 
+      border-radius: 4px; 
+      cursor: pointer; 
+      background-color: #dc3545; 
+      color: white; 
+    }
+    .recruitment-toggle-btn:hover { background-color: #c82333; }
+    .recruitment-toggle-btn.stopped { background-color: #28a745; }
+    .recruitment-toggle-btn.stopped:hover { background-color: #218838; }
+    .meal-unavailable { 
+      text-align: center; 
+      color: #6c757d; 
+      font-style: italic; 
+      padding: 20px; 
+    }
     
     /* ナビゲーション - スマホ対応 */
     .month-navigation { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 20px; flex-wrap: wrap; gap: 10px; }
@@ -127,8 +252,10 @@
     @media (max-width: 1024px) {
       .container { padding: 12px; }
       .calendar { gap: 1px; }
-      .calendar-cell { min-height: 120px; padding: 3px; }
+      .calendar-cell { min-height: 90px; padding: 3px; }
       .meal-section { font-size: 0.7rem; }
+      .menu-edit-area { padding: 15px; }
+      .meal-edit-section { padding: 12px; }
     }
     
     /* スマートフォン対応 */
@@ -141,17 +268,19 @@
       .month-navigation { flex-direction: column; gap: 8px; }
       .month-navigation button { min-width: 100px; padding: 8px 12px; }
       .calendar { grid-template-columns: repeat(7, 1fr); gap: 1px; }
-      .calendar-cell { min-height: 100px; padding: 2px; }
+      .calendar-cell { min-height: 80px; padding: 2px; }
       .weekday-header { padding: 6px 2px; font-size: 0.8rem; }
       .date-header { font-size: 0.8rem; }
       .meal-section { font-size: 0.65rem; }
       .meal-count { font-size: 0.6rem; padding: 1px 4px; }
-      .menu { font-size: 0.6rem !important; }
-      .menu-edit input, .menu-edit button, .menu-history-select { font-size: 0.6rem; padding: 2px; }
-      .stop-button { font-size: 0.6rem; padding: 2px 4px; }
+      .menu-display { font-size: 0.6rem !important; }
       .summary-title { font-size: 1rem; }
       .reservation-count { font-size: 1.1rem; }
       .reservation-users p { font-size: 0.75rem; }
+      .menu-edit-area { padding: 12px; }
+      .menu-edit-date { font-size: 1rem; }
+      .meal-edit-section { padding: 10px; }
+      .meal-edit-title { font-size: 1rem; }
     }
     
     /* 小さなスマートフォン対応 */
@@ -161,15 +290,18 @@
       .admin-header { padding: 10px; margin: -8px -8px 12px -8px; }
       .admin-header h1 { font-size: 1.1rem; }
       .month-navigation h3 { font-size: 1rem; }
-      .calendar-cell { min-height: 85px; padding: 1px; }
+      .calendar-cell { min-height: 70px; padding: 1px; }
       .weekday-header { padding: 4px 1px; font-size: 0.7rem; }
       .date-header { font-size: 0.7rem; }
       .meal-section { font-size: 0.6rem; }
       .meal-count { font-size: 0.55rem; }
-      .menu { font-size: 0.55rem !important; }
-      .menu-edit input, .menu-edit button, .menu-history-select { font-size: 0.55rem; padding: 1px; }
-      .stop-button { font-size: 0.55rem; padding: 1px 3px; }
+      .menu-display { font-size: 0.55rem !important; }
       .reservation-users p { font-size: 0.7rem; padding: 2px 4px; }
+      .menu-edit-area { padding: 10px; }
+      .menu-edit-date { font-size: 0.9rem; }
+      .meal-edit-section { padding: 8px; }
+      .meal-edit-title { font-size: 0.9rem; }
+      .menu-input-section { flex-direction: column; gap: 8px; }
     }
     
     /* 横向きスマートフォン対応 */
@@ -181,9 +313,10 @@
     
     /* タッチデバイス用のボタン調整 */
     @media (pointer: coarse) {
-      .menu-edit button, .stop-button { min-height: 28px; min-width: 40px; }
+      .menu-update-btn, .recruitment-toggle-btn { min-height: 40px; min-width: 80px; }
       select, input { min-height: 40px; }
       .month-navigation button { min-height: 40px; }
+      .calendar-cell { min-height: 90px; }
     }
   </style>
 </head>
@@ -291,13 +424,117 @@
         </div>
       </div>
 
+      <!-- メニュー編集エリア -->
+      <div v-if="selectedDate" class="menu-edit-area">
+        <div class="menu-edit-header">
+          <div class="menu-edit-date">{{ formatDateJapanese(new Date(selectedDate)) }} のメニュー編集</div>
+          <button class="menu-edit-close" @click="closeMenuEdit">&times;</button>
+        </div>
+        
+        <!-- 朝食編集セクション -->
+        <div v-if="getBreakfastForDate(selectedDate)" class="meal-edit-section">
+          <div class="meal-edit-title">🌅 朝食 ({{ getBreakfastForDate(selectedDate).count }}食)</div>
+          
+          <div v-if="!isRecruitmentStopped(selectedDate, 'breakfast')">
+            <div class="current-menu">
+              <div class="current-menu-label">現在のメニュー:</div>
+              <div class="current-menu-text">{{ getBreakfastForDate(selectedDate).menuName || '未設定' }}</div>
+            </div>
+            
+            <div class="menu-select-section">
+              <label>過去のメニューから選択:</label>
+              <select v-model="selectedBreakfastMenu" @change="selectBreakfastMenuFromHistory">
+                <option value="">-- メニューを選択 --</option>
+                <option v-for="menu in breakfastMenuList" :key="menu" :value="menu">{{ menu }}</option>
+              </select>
+            </div>
+            
+            <div class="menu-input-section">
+              <div class="menu-input-group">
+                <label>新しいメニュー:</label>
+                <input type="text" v-model="editBreakfastMenu" placeholder="メニューを入力してください">
+              </div>
+              <button class="menu-update-btn" @click="updateSelectedMenu('breakfast')" :disabled="menuUpdateLoading">
+                <span v-if="menuUpdateLoading">更新中...</span>
+                <span v-else>メニュー更新</span>
+              </button>
+            </div>
+          </div>
+          <div v-else class="meal-unavailable">この日の朝食は休止中です</div>
+          
+          <div class="recruitment-toggle-section">
+            <button class="recruitment-toggle-btn" 
+                    :class="{ 'stopped': isRecruitmentStopped(selectedDate, 'breakfast') }"
+                    @click="toggleSelectedRecruitmentStop('breakfast')" 
+                    :disabled="recruitmentToggleLoading">
+              <span v-if="recruitmentToggleLoading">処理中...</span>
+              <span v-else>{{ isRecruitmentStopped(selectedDate, 'breakfast') ? '朝食の休止を解除する' : '朝食を休止する' }}</span>
+            </button>
+          </div>
+        </div>
+        <div v-else class="meal-edit-section">
+          <div class="meal-unavailable">この日は朝食の提供がありません</div>
+        </div>
+
+        <!-- 夕食編集セクション -->
+        <div v-if="getDinnerForDate(selectedDate) && !isSaturday(selectedDate)" class="meal-edit-section dinner">
+          <div class="meal-edit-title">🌆 夕食 ({{ getDinnerForDate(selectedDate).count }}食)</div>
+          
+          <div v-if="!isRecruitmentStopped(selectedDate, 'dinner')">
+            <div class="current-menu">
+              <div class="current-menu-label">現在のメニュー:</div>
+              <div class="current-menu-text">{{ getDinnerForDate(selectedDate).menuName || '未設定' }}</div>
+            </div>
+            
+            <div class="menu-select-section">
+              <label>過去のメニューから選択:</label>
+              <select v-model="selectedDinnerMenu" @change="selectDinnerMenuFromHistory">
+                <option value="">-- メニューを選択 --</option>
+                <option v-for="menu in dinnerMenuList" :key="menu" :value="menu">{{ menu }}</option>
+              </select>
+            </div>
+            
+            <div class="menu-input-section">
+              <div class="menu-input-group">
+                <label>新しいメニュー:</label>
+                <input type="text" v-model="editDinnerMenu" placeholder="メニューを入力してください">
+              </div>
+              <button class="menu-update-btn" @click="updateSelectedMenu('dinner')" :disabled="menuUpdateLoading">
+                <span v-if="menuUpdateLoading">更新中...</span>
+                <span v-else>メニュー更新</span>
+              </button>
+            </div>
+          </div>
+          <div v-else class="meal-unavailable">この日の夕食は休止中です</div>
+          
+          <div class="recruitment-toggle-section">
+            <button class="recruitment-toggle-btn" 
+                    :class="{ 'stopped': isRecruitmentStopped(selectedDate, 'dinner') }"
+                    @click="toggleSelectedRecruitmentStop('dinner')" 
+                    :disabled="recruitmentToggleLoading">
+              <span v-if="recruitmentToggleLoading">処理中...</span>
+              <span v-else>{{ isRecruitmentStopped(selectedDate, 'dinner') ? '夕食の休止を解除する' : '夕食を休止する' }}</span>
+            </button>
+          </div>
+        </div>
+        <div v-else-if="isSaturday(selectedDate)" class="meal-edit-section dinner">
+          <div class="meal-unavailable">土曜日は夕食の提供がありません</div>
+        </div>
+        <div v-else class="meal-edit-section dinner">
+          <div class="meal-unavailable">この日は夕食の提供がありません</div>
+        </div>
+      </div>
+
       <div class="calendar-container" v-if="calendarLoaded">
         <div class="calendar">
           <div v-for="(day, index) in weekdays" :key="index" class="weekday-header">{{ day }}</div>
         </div>
         <div class="calendar" style="margin-top: 1px;">
           <div v-for="i in offset" :key="'empty-' + i" class="calendar-cell empty-cell"></div>
-          <div v-for="date in monthDates" :key="date" class="calendar-cell" :class="{ 'today': isToday(date) }">
+          <div v-for="date in monthDates" :key="date" 
+               class="calendar-cell" 
+               :class="{ 'today': isToday(date), 'selected': selectedDate === date }"
+               @click="selectDate(date)">
             <div class="date-header">{{ getDayFromDate(date) }}</div>
             <div class="meal-section">
               <div v-if="getBreakfastForDate(date)" class="meal-item">
@@ -305,36 +542,10 @@
                   <strong>朝食</strong>
                   <span class="meal-count">{{ getBreakfastForDate(date).count }}食</span>
                 </div>
-                <div class="menu" v-if="!isRecruitmentStopped(date, 'breakfast')">
-                  メニュー: {{ getBreakfastForDate(date).menuName }}
+                                <div class="menu-display" v-if="!isRecruitmentStopped(date, 'breakfast')">
+                  {{ getBreakfastForDate(date).menuName || '未設定' }}
                 </div>
-                <!-- メニュー編集 -->
-                <div class="menu-edit" v-if="!isRecruitmentStopped(date, 'breakfast')">
-                  <div class="menu-history">
-                    <select class="menu-history-select" v-model="breakfastMenuInputs[getBreakfastForDate(date).calendarId]" @change="selectBreakfastMenu(getBreakfastForDate(date).calendarId)">
-                      <option value="">-- メニューを選択 --</option>
-                      <option v-for="menu in breakfastMenuList" :key="menu" :value="menu">
-                        {{ menu }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="menu-edit-inputs">
-                    <input type="text" v-model="breakfastMenuInputs[getBreakfastForDate(date).calendarId]" placeholder="メニューを入力" :disabled="menuUpdateLoading">
-                    <button @click="updateMenu('breakfast', getBreakfastForDate(date).calendarId)" :disabled="menuUpdateLoading">
-                      <span v-if="menuUpdateLoading">更新中...</span>
-                      <span v-else>変更</span>
-                    </button>
-                  </div>
-                </div>
-                <!-- 募集停止ボタン -->
-                <div class="recruitment-control">
-                  <button @click="toggleRecruitmentStop(date, 'breakfast')" 
-                          :class="['stop-button', { 'stopped': isRecruitmentStopped(date, 'breakfast') }]"
-                          :disabled="recruitmentToggleLoading">
-                    <span v-if="recruitmentToggleLoading">処理中...</span>
-                    <span v-else>{{ isRecruitmentStopped(date, 'breakfast') ? '休みを解除する' : '休みにする' }}</span>
-                  </button>
-                </div>
+                <div v-if="isRecruitmentStopped(date, 'breakfast')" class="meal-unavailable">休止中</div>
               </div>
               <div v-else class="meal-item">
                 <div class="meal-title">
@@ -350,35 +561,10 @@
                   <strong>夕食</strong>
                   <span class="meal-count">{{ getDinnerForDate(date).count }}食</span>
                 </div>
-                <div class="menu" v-if="!isRecruitmentStopped(date, 'dinner')">
-                  メニュー: {{ getDinnerForDate(date).menuName }}
+                                <div class="menu-display" v-if="!isRecruitmentStopped(date, 'dinner')">
+                  {{ getDinnerForDate(date).menuName || '未設定' }}
                 </div>
-                <div class="menu-edit" v-if="!isRecruitmentStopped(date, 'dinner')">
-                  <div class="menu-history">
-                    <select class="menu-history-select" v-model="dinnerMenuInputs[getDinnerForDate(date).calendarId]" @change="selectDinnerMenu(getDinnerForDate(date).calendarId)">
-                      <option value="">-- メニューを選択 --</option>
-                      <option v-for="menu in dinnerMenuList" :key="menu" :value="menu">
-                        {{ menu }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="menu-edit-inputs">
-                    <input type="text" v-model="dinnerMenuInputs[getDinnerForDate(date).calendarId]" placeholder="メニューを入力" :disabled="menuUpdateLoading">
-                    <button @click="updateMenu('dinner', getDinnerForDate(date).calendarId)" :disabled="menuUpdateLoading">
-                      <span v-if="menuUpdateLoading">更新中...</span>
-                      <span v-else>変更</span>
-                    </button>
-                  </div>
-                </div>
-                <!-- 募集停止ボタン -->
-                <div class="recruitment-control">
-                  <button @click="toggleRecruitmentStop(date, 'dinner')" 
-                          :class="['stop-button', { 'stopped': isRecruitmentStopped(date, 'dinner') }]"
-                          :disabled="recruitmentToggleLoading">
-                    <span v-if="recruitmentToggleLoading">処理中...</span>
-                    <span v-else>{{ isRecruitmentStopped(date, 'dinner') ? '休みを解除する' : '休みにする' }}</span>
-                  </button>
-                </div>
+                <div v-if="isRecruitmentStopped(date, 'dinner')" class="meal-unavailable">休止中</div>
               </div>
               <div v-else-if="isSaturday(date)" class="meal-item">
                 <div class="meal-title">
@@ -423,7 +609,12 @@
         recruitmentStops: {}, // 募集停止情報を格納
         menuUpdateLoading: false, // メニュー更新中のローディング
         recruitmentToggleLoading: false, // 募集停止切り替え中のローディング
-        sheetOpenLoading: false // スプレッドシート開く処理中のローディング
+        sheetOpenLoading: false, // スプレッドシート開く処理中のローディング
+        selectedDate: null, // 選択された日付
+        editBreakfastMenu: '', // 編集中の朝食メニュー
+        editDinnerMenu: '', // 編集中の夕食メニュー
+        selectedBreakfastMenu: '', // 選択された朝食メニュー
+        selectedDinnerMenu: '' // 選択された夕食メニュー
       },
       computed: {
         isCurrentMonth: function() {
@@ -585,6 +776,9 @@
             
             this.initializeMenuInputs();
             this.calendarLoaded = true;
+            
+            // カレンダーデータが読み込まれた後に適切な日付を選択
+            this.setInitialSelectedDate();
           } else {
             const errorMessage = data && data.message ? data.message : 'データの取得に失敗しました';
             console.error('❌ データ処理エラー:', errorMessage);
@@ -705,6 +899,12 @@
           } else {
             this.currentMonth--;
           }
+          // 月切り替え時は選択をクリア
+          this.selectedDate = null;
+          this.editBreakfastMenu = '';
+          this.editDinnerMenu = '';
+          this.selectedBreakfastMenu = '';
+          this.selectedDinnerMenu = '';
           this.loadCalendarData();
         },
         nextMonth: function() {
@@ -714,6 +914,12 @@
           } else {
             this.currentMonth++;
           }
+          // 月切り替え時は選択をクリア
+          this.selectedDate = null;
+          this.editBreakfastMenu = '';
+          this.editDinnerMenu = '';
+          this.selectedBreakfastMenu = '';
+          this.selectedDinnerMenu = '';
           this.loadCalendarData();
         },
         // --- ★ ここがスプレッドシートを開く処理 ---
@@ -780,6 +986,127 @@
               this.handleError(error);
             })
             .toggleRecruitmentStop(date, mealType, this.currentYear, this.currentMonth);
+        },
+        // 新しいメニュー編集メソッド
+        selectDate: function(date) {
+          this.selectedDate = date;
+          this.updateEditMenus(date);
+        },
+        closeMenuEdit: function() {
+          this.selectedDate = null;
+          this.editBreakfastMenu = '';
+          this.editDinnerMenu = '';
+          this.selectedBreakfastMenu = '';
+          this.selectedDinnerMenu = '';
+        },
+        selectBreakfastMenuFromHistory: function() {
+          if (this.selectedBreakfastMenu) {
+            this.editBreakfastMenu = this.selectedBreakfastMenu;
+          }
+        },
+        selectDinnerMenuFromHistory: function() {
+          if (this.selectedDinnerMenu) {
+            this.editDinnerMenu = this.selectedDinnerMenu;
+          }
+        },
+        updateSelectedMenu: function(mealType) {
+          const breakfast = this.getBreakfastForDate(this.selectedDate);
+          const dinner = this.getDinnerForDate(this.selectedDate);
+          
+          let calendarId;
+          let menuInput;
+          
+          if (mealType === 'breakfast' && breakfast) {
+            calendarId = breakfast.calendarId;
+            menuInput = this.editBreakfastMenu;
+          } else if (mealType === 'dinner' && dinner) {
+            calendarId = dinner.calendarId;
+            menuInput = this.editDinnerMenu;
+          }
+          
+          if (!calendarId || !menuInput || menuInput.trim() === '') {
+            alert('メニューを入力してください');
+            return;
+          }
+          
+          this.menuUpdateLoading = true;
+          google.script.run
+            .withSuccessHandler(response => {
+              this.handleSelectedMenuUpdateSuccess(response, mealType, calendarId, menuInput);
+            })
+            .withFailureHandler(this.handleError)
+            .updateMenuForCalendar(calendarId, mealType, menuInput, this.currentYear, this.currentMonth);
+        },
+        handleSelectedMenuUpdateSuccess: function(response, mealType, calendarId, menuName) {
+          if (response.success) {
+            alert('メニューを更新しました');
+            const targetReservations = mealType === 'breakfast' ? this.breakfastReservations : this.dinnerReservations;
+            const targetMenuList = mealType === 'breakfast' ? this.breakfastMenuList : this.dinnerMenuList;
+            const index = targetReservations.findIndex(item => item.calendarId == calendarId);
+            if (index !== -1) {
+              targetReservations[index].menuName = menuName;
+              targetReservations[index].menuId = response.menuId;
+            }
+            if (response.isNewMenu && !targetMenuList.includes(menuName)) {
+              targetMenuList.push(menuName);
+              targetMenuList.sort();
+            }
+            // プルダウンをリセット
+            if (mealType === 'breakfast') {
+              this.selectedBreakfastMenu = '';
+            } else {
+              this.selectedDinnerMenu = '';
+            }
+          } else {
+            alert('メニューの更新に失敗しました: ' + response.message);
+          }
+          this.menuUpdateLoading = false;
+        },
+        toggleSelectedRecruitmentStop: function(mealType) {
+          if (!this.selectedDate) return;
+          
+          this.recruitmentToggleLoading = true;
+          google.script.run
+            .withSuccessHandler(response => {
+              this.recruitmentToggleLoading = false;
+              if (response.success) {
+                alert(response.message);
+                this.fetchRecruitmentStops();
+              } else {
+                alert('操作に失敗しました: ' + response.message);
+              }
+            })
+            .withFailureHandler(error => {
+              this.recruitmentToggleLoading = false;
+              this.handleError(error);
+            })
+            .toggleRecruitmentStop(this.selectedDate, mealType, this.currentYear, this.currentMonth);
+        },
+        // 初期選択日付を設定するメソッド
+        setInitialSelectedDate: function() {
+          const today = this.formatDate(new Date());
+          
+          // 今日の日付が現在表示中の月に含まれている場合は今日を選択
+          if (this.monthDates && this.monthDates.includes(today)) {
+            this.selectedDate = today;
+            this.updateEditMenus(today);
+          } else {
+            // 今日が現在の月に含まれていない場合は、その月の最初の日を選択
+            if (this.monthDates && this.monthDates.length > 0) {
+              this.selectedDate = this.monthDates[0];
+              this.updateEditMenus(this.monthDates[0]);
+            }
+          }
+        },
+        // 選択された日付のメニュー情報を編集フィールドに更新
+        updateEditMenus: function(date) {
+          const breakfast = this.getBreakfastForDate(date);
+          const dinner = this.getDinnerForDate(date);
+          
+          this.editBreakfastMenu = breakfast && breakfast.menuName !== '未設定' ? breakfast.menuName : '';
+          this.editDinnerMenu = dinner && dinner.menuName !== '未設定' ? dinner.menuName : '';
+          this.selectedBreakfastMenu = '';
+          this.selectedDinnerMenu = '';
         },
       },
       mounted: function() {
