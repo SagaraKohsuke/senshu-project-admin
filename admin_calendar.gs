@@ -928,32 +928,42 @@ function getMonthlyReservationCounts(year, month) {
   const userIdIndex = usersHeaders.indexOf("user_id");
   const userNameIndex = usersHeaders.indexOf("name");
   
-  // 朝食メニューマップの作成
+  // 朝食メニューマップの作成（カロリー情報も含む）
   const bMenuMap = {};
   if (bMenuData.length > 1) {
     const bMenuIdIndex = bMenuData[0].indexOf("b_menu_id");
     const bMenuNameIndex = bMenuData[0].indexOf("breakfast_menu");
+    const bCalorieIndex = bMenuData[0].indexOf("calorie");
     
     if (bMenuIdIndex !== -1 && bMenuNameIndex !== -1) {
       for (let i = 1; i < bMenuData.length; i++) {
         const menuId = bMenuData[i][bMenuIdIndex];
         const menuName = bMenuData[i][bMenuNameIndex];
-        bMenuMap[menuId] = menuName;
+        const calorie = bCalorieIndex !== -1 ? bMenuData[i][bCalorieIndex] : 0;
+        bMenuMap[menuId] = {
+          name: menuName,
+          calorie: calorie || 0
+        };
       }
     }
   }
   
-  // 夕食メニューマップの作成
+  // 夕食メニューマップの作成（カロリー情報も含む）
   const dMenuMap = {};
   if (dMenuData.length > 1) {
     const dMenuIdIndex = dMenuData[0].indexOf("d_menu_id");
     const dMenuNameIndex = dMenuData[0].indexOf("dinner_menu");
+    const dCalorieIndex = dMenuData[0].indexOf("calorie");
     
     if (dMenuIdIndex !== -1 && dMenuNameIndex !== -1) {
       for (let i = 1; i < dMenuData.length; i++) {
         const menuId = dMenuData[i][dMenuIdIndex];
         const menuName = dMenuData[i][dMenuNameIndex];
-        dMenuMap[menuId] = menuName;
+        const calorie = dCalorieIndex !== -1 ? dMenuData[i][dCalorieIndex] : 0;
+        dMenuMap[menuId] = {
+          name: menuName,
+          calorie: calorie || 0
+        };
       }
     }
   }
@@ -978,7 +988,8 @@ function getMonthlyReservationCounts(year, month) {
       bCalendarDateMap[calendarId] = {
         date: dateStr,
         menuId: menuId,
-        menuName: bMenuMap[menuId] || "未設定"
+        menuName: bMenuMap[menuId] ? bMenuMap[menuId].name : "未設定",
+        calorie: bMenuMap[menuId] ? bMenuMap[menuId].calorie : 0
       };
     }
   }
@@ -995,7 +1006,8 @@ function getMonthlyReservationCounts(year, month) {
       dCalendarDateMap[calendarId] = {
         date: dateStr,
         menuId: menuId,
-        menuName: dMenuMap[menuId] || "未設定"
+        menuName: dMenuMap[menuId] ? dMenuMap[menuId].name : "未設定",
+        calorie: dMenuMap[menuId] ? dMenuMap[menuId].calorie : 0
       };
     }
   }
@@ -1060,6 +1072,7 @@ function getMonthlyReservationCounts(year, month) {
       date: dateInfo.date,
       menuId: dateInfo.menuId,
       menuName: dateInfo.menuName,
+      calorie: dateInfo.calorie,
       count: bReservationCounts[calendarId] || 0,
       users: bReservationUsers[calendarId] || []
     });
@@ -1073,6 +1086,7 @@ function getMonthlyReservationCounts(year, month) {
       date: dateInfo.date,
       menuId: dateInfo.menuId,
       menuName: dateInfo.menuName,
+      calorie: dateInfo.calorie,
       count: dReservationCounts[calendarId] || 0,
       users: dReservationUsers[calendarId] || []
     });

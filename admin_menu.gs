@@ -1,4 +1,4 @@
-function updateMenuForCalendar(calendarId, mealType, menuName, year, month) {
+function updateMenuForCalendar(calendarId, mealType, menuName, calorie, year, month) {
   const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
   const ss = SpreadsheetApp.openById(spreadsheetId);
   
@@ -26,15 +26,15 @@ function updateMenuForCalendar(calendarId, mealType, menuName, year, month) {
     if (mealType === "breakfast") {
       // 朝食メニューシート作成
       const newMenuSheet = ss.insertSheet(menuSheetName);
-      newMenuSheet.getRange("A1:B1").setValues([["b_menu_id", "breakfast_menu"]]);
-      newMenuSheet.getRange("A1:B1").setFontWeight("bold");
-      newMenuSheet.autoResizeColumns(1, 2);
+      newMenuSheet.getRange("A1:C1").setValues([["b_menu_id", "breakfast_menu", "calorie"]]);
+      newMenuSheet.getRange("A1:C1").setFontWeight("bold");
+      newMenuSheet.autoResizeColumns(1, 3);
     } else {
       // 夕食メニューシート作成
       const newMenuSheet = ss.insertSheet(menuSheetName);
-      newMenuSheet.getRange("A1:B1").setValues([["d_menu_id", "dinner_menu"]]);
-      newMenuSheet.getRange("A1:B1").setFontWeight("bold");
-      newMenuSheet.autoResizeColumns(1, 2);
+      newMenuSheet.getRange("A1:C1").setValues([["d_menu_id", "dinner_menu", "calorie"]]);
+      newMenuSheet.getRange("A1:C1").setFontWeight("bold");
+      newMenuSheet.autoResizeColumns(1, 3);
     }
     
     menuSheet = ss.getSheetByName(menuSheetName);
@@ -63,6 +63,7 @@ function updateMenuForCalendar(calendarId, mealType, menuName, year, month) {
   const menuNameColIndex = mealType === "breakfast" 
     ? menuHeaders.indexOf("breakfast_menu") 
     : menuHeaders.indexOf("dinner_menu");
+  const calorieColIndex = menuHeaders.indexOf("calorie");
   
   if (menuIdColIndex === -1 || menuNameColIndex === -1) {
     return {
@@ -80,6 +81,11 @@ function updateMenuForCalendar(calendarId, mealType, menuName, year, month) {
     if (menuData[i][menuNameColIndex] === menuName) {
       menuId = menuData[i][menuIdColIndex];
       isNewMenu = false;
+      
+      // 既存メニューのカロリー情報を更新（カロリーカラムが存在する場合）
+      if (calorieColIndex !== -1 && calorie !== undefined && calorie !== null) {
+        menuSheet.getRange(i + 1, calorieColIndex + 1).setValue(calorie);
+      }
       break;
     }
   }
@@ -102,7 +108,11 @@ function updateMenuForCalendar(calendarId, mealType, menuName, year, month) {
     }
     
     // 新しいメニューを追加
-    menuSheet.appendRow([newMenuId, menuName]);
+    const newMenuRow = [newMenuId, menuName];
+    if (calorieColIndex !== -1) {
+      newMenuRow.push(calorie || 0); // カロリーが未入力の場合は0
+    }
+    menuSheet.appendRow(newMenuRow);
     menuId = newMenuId;
   }
   
@@ -157,12 +167,17 @@ function getMenuLists() {
     
     if (bMenuData.length > 1) {
       const bMenuNameIndex = bMenuData[0].indexOf("breakfast_menu");
+      const bCalorieIndex = bMenuData[0].indexOf("calorie");
       
       if (bMenuNameIndex !== -1) {
         for (let i = 1; i < bMenuData.length; i++) {
           const menuName = bMenuData[i][bMenuNameIndex];
+          const calorie = bCalorieIndex !== -1 ? bMenuData[i][bCalorieIndex] : 0;
           if (menuName && menuName !== "未設定") {
-            breakfastMenus.push(menuName);
+            breakfastMenus.push({
+              name: menuName,
+              calorie: calorie || 0
+            });
           }
         }
       }
@@ -175,12 +190,17 @@ function getMenuLists() {
     
     if (dMenuData.length > 1) {
       const dMenuNameIndex = dMenuData[0].indexOf("dinner_menu");
+      const dCalorieIndex = dMenuData[0].indexOf("calorie");
       
       if (dMenuNameIndex !== -1) {
         for (let i = 1; i < dMenuData.length; i++) {
           const menuName = dMenuData[i][dMenuNameIndex];
+          const calorie = dCalorieIndex !== -1 ? dMenuData[i][dCalorieIndex] : 0;
           if (menuName && menuName !== "未設定") {
-            dinnerMenus.push(menuName);
+            dinnerMenus.push({
+              name: menuName,
+              calorie: calorie || 0
+            });
           }
         }
       }
@@ -188,8 +208,21 @@ function getMenuLists() {
   }
   
   // 重複を削除してメニューを並べ替え
-  const uniqueBreakfastMenus = [...new Set(breakfastMenus)].sort();
-  const uniqueDinnerMenus = [...new Set(dinnerMenus)].sort();
+  const uniqueBreakfastMenus = breakfastMenus.reduce((unique, menu) => {
+    const found = unique.find(m => m.name === menu.name);
+    if (!found) {
+      unique.push(menu);
+    }
+    return unique;
+  }, []).sort((a, b) => a.name.localeCompare(b.name));
+  
+  const uniqueDinnerMenus = dinnerMenus.reduce((unique, menu) => {
+    const found = unique.find(m => m.name === menu.name);
+    if (!found) {
+      unique.push(menu);
+    }
+    return unique;
+  }, []).sort((a, b) => a.name.localeCompare(b.name));
   
   return {
     success: true,
