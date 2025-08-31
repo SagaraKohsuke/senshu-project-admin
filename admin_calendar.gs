@@ -440,7 +440,7 @@ function generateMonthlyMealSheet(year, month) {
 
 /**
  * テスト用：当日の朝食・夕食の記録を手動で作成する
- * 本来は18:00に自動実行される処理
+ * 本来は12:00に自動実行される処理
  * @return {Object} 結果
  */
 function testCreateDailyMealRecord() {

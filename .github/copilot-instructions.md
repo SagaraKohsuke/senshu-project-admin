@@ -83,7 +83,7 @@
 - Web app entry point: `doGet()` function serves Vue.js interface
 
 #### Automation System (admin_submission.gs)
-- **CRITICAL**: Setup triggers with `setupTriggers()` - creates monthly (1st at 00:00) and daily (18:00) automation
+- **CRITICAL**: Setup triggers with `setupTriggers()` - creates monthly (1st at 00:00) and daily (12:00) automation
 - **NEVER CANCEL**: Trigger setup takes 10-15 seconds
 - Monthly sheet creation: `createMonthlySheet()` - NEVER CANCEL: takes 20-30 seconds
 - Daily data update: `updateDailyMealSheet()` - NEVER CANCEL: takes 15-25 seconds

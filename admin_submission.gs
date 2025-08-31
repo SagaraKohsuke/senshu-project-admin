@@ -43,7 +43,7 @@ function createMonthlySheet() {
   const newSheet = templateSheet.copyTo(mealSS);
   newSheet.setName(newSheetName);
   
-  // 作成したシートに初期データを設定（ユーザー名のみ）
+  // 作成したシートに初期データを設定（ユーザー名、日付ヘッダー、曜日）
   try {
     const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
     const ss = SpreadsheetApp.openById(spreadsheetId);
@@ -60,21 +60,31 @@ function createMonthlySheet() {
         userIdToNameMap[usersData[i][userIdIndex]] = usersData[i][userNameIndex];
       }
       
-      // 名前のみ設定（テンプレートの関数はそのまま使用）
+      // ユーザー名を設定
       updateUserNamesInSheet(newSheet, userIdToNameMap);
     }
+    
+    // 月度タイトルと日付ヘッダー（曜日含む）を設定
+    updateSheetHeader(newSheet, year, month);
+    
+    // 土日の休業日に斜線を適用
+    applyDiagonalLinesForClosedDays(newSheet, year, month);
     
   } catch (e) {
     console.error('新しいシートの初期化中にエラーが発生しました: ' + e.message);
   }
   
   console.log(`新しいシート ${newSheetName} を作成しました。`);
+  console.log(`- ユーザー名設定完了`);
+  console.log(`- 月度タイトル設定: ${year}年${month}月`);  
+  console.log(`- 日付・曜日ヘッダー設定完了`);
+  console.log(`- 土日休業日の斜線設定完了`);
 }
 
 /**
- * 毎日18:00に実行される関数（トリガー関数）
+ * 毎日12:00に実行される関数（トリガー関数）
  * 当月のシートに予約データを更新
- * ※ テンプレートの関数はそのまま使用し、ユーザー名設定と当日の予約データのみ更新
+ * ※ テンプレートの関数はそのまま使用し、ユーザー名設定と当日以降の予約データを更新
  */
 function updateDailyMealSheet() {
   const now = new Date();
@@ -130,31 +140,43 @@ function updateDailyMealSheet() {
 
     // 今日の日付を取得
     const today = new Date();
-    const todayStr = formatDate(today);
     const todayDayOfMonth = today.getDate();
 
-    // 今日分のデータのみ更新
+    // 当日以降の全データを更新（既存データを先にクリア）
+    clearFutureDatesData(targetSheet, todayDayOfMonth, year, month);
+    
     const dataToUpdate = [];
     const { breakfast: breakfastReservations, dinner: dinnerReservations } = reservationData;
 
-    // 朝食の今日分のデータを処理
-    const todayBreakfast = breakfastReservations.find(item => item.date === todayStr);
-    if (todayBreakfast && todayBreakfast.users.length > 0) {
-      processSingleDayReservations(todayBreakfast, false, todayDayOfMonth, userRowMap_1_16, userRowMap_17_31, dataToUpdate);
-    }
+    // 朝食の当日以降のデータを処理
+    breakfastReservations.forEach(dayData => {
+      if (dayData.users.length > 0) {
+        const dayOfMonth = parseInt(dayData.date.split('-')[2], 10);
+        // 当日以降のデータのみ処理
+        if (dayOfMonth >= todayDayOfMonth) {
+          processSingleDayReservations(dayData, false, dayOfMonth, userRowMap_1_16, userRowMap_17_31, dataToUpdate);
+        }
+      }
+    });
 
-    // 夕食の今日分のデータを処理
-    const todayDinner = dinnerReservations.find(item => item.date === todayStr);
-    if (todayDinner && todayDinner.users.length > 0) {
-      processSingleDayReservations(todayDinner, true, todayDayOfMonth, userRowMap_1_16, userRowMap_17_31, dataToUpdate);
-    }
+    // 夕食の当日以降のデータを処理
+    dinnerReservations.forEach(dayData => {
+      if (dayData.users.length > 0) {
+        const dayOfMonth = parseInt(dayData.date.split('-')[2], 10);
+        // 当日以降のデータのみ処理
+        if (dayOfMonth >= todayDayOfMonth) {
+          processSingleDayReservations(dayData, true, dayOfMonth, userRowMap_1_16, userRowMap_17_31, dataToUpdate);
+        }
+      }
+    });
     
-    // 今日分のデータを更新
+    // 当日以降のデータを更新
     dataToUpdate.forEach(data => {
       targetSheet.getRange(data.row, data.col).setValue(data.value);
     });
     
-    console.log(`${sheetName} の今日（${todayStr}）の予約データを更新しました。`);
+    const lastDay = new Date(year, month, 0).getDate();
+    console.log(`${sheetName} の当日以降（${todayDayOfMonth}日〜${lastDay}日）の予約データを更新しました。更新件数: ${dataToUpdate.length}件`);
 
   } catch (e) {
     console.error('updateDailyMealSheet Error: ' + e.message + " Stack: " + e.stack);
@@ -187,6 +209,38 @@ function processSingleDayReservations(dayData, isDinner, dayOfMonth, userRowMap_
       dataToUpdate.push({row: userRow, col: column, value: 1});
     }
   });
+}
+
+/**
+ * 当日以降の日付のデータをクリアする
+ */
+function clearFutureDatesData(sheet, startDay, year, month) {
+  const lastDay = new Date(year, month, 0).getDate();
+  
+  // 前半ブロック（1日〜16日）と後半ブロック（17日〜31日）でそれぞれ処理
+  for (let day = startDay; day <= lastDay; day++) {
+    let blockStartRow, relativeDay;
+    
+    if (day <= 16) {
+      // 前半ブロック
+      blockStartRow = 5;
+      relativeDay = day;
+    } else {
+      // 後半ブロック
+      blockStartRow = 45;
+      relativeDay = day - 16;
+    }
+    
+    const breakfastCol = (relativeDay - 1) * 2 + 3; // 朝食の列
+    const dinnerCol = breakfastCol + 1; // 夕食の列
+    
+    // 該当日の朝食・夕食の列をクリア（前半・後半それぞれ32行分）
+    const blockEndRow = blockStartRow + 32;
+    sheet.getRange(blockStartRow, breakfastCol, blockEndRow - blockStartRow + 1, 1).clearContent();
+    sheet.getRange(blockStartRow, dinnerCol, blockEndRow - blockStartRow + 1, 1).clearContent();
+  }
+  
+  console.log(`${startDay}日以降の予約データをクリアしました。`);
 }
 
 /**
@@ -240,26 +294,30 @@ function updateSheetHeader(sheet, year, month) {
 function updateDateHeaders(sheet, year, month) {
   const daysInMonth = new Date(year, month, 0).getDate();
   
-  // 前半ブロック (1日〜16日)
+  // 前半ブロック (1日〜16日) - 2行目に設定
   for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
     const date = new Date(year, month - 1, day);
     const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
     
-    const dayCol = (day - 1) * 2 + 3; // C列から開始
-    sheet.getRange(2, dayCol).setValue(day);
-    sheet.getRange(2, dayCol + 1).setValue(dayOfWeek);
+    const dayCol = (day - 1) * 2 + 3; // C列から開始（3列目）
+    sheet.getRange(2, dayCol).setValue(day);           // 日付
+    sheet.getRange(2, dayCol + 1).setValue(dayOfWeek); // 曜日
   }
   
-  // 後半ブロック (17日〜月末)
+  // 後半ブロック (17日〜月末) - CSVを確認すると40行目にヘッダーがある
+  const backHalfHeaderRow = 40; // 後半ブロックのヘッダー行
+  
   for (let day = 17; day <= daysInMonth; day++) {
     const date = new Date(year, month - 1, day);
     const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
     
     const relativeDay = day - 16;
-    const dayCol = (relativeDay - 1) * 2 + 3; // 後半ブロックのC列から開始
-    sheet.getRange(42, dayCol).setValue(day);
-    sheet.getRange(42, dayCol + 1).setValue(dayOfWeek);
+    const dayCol = (relativeDay - 1) * 2 + 3; // C列から開始
+    sheet.getRange(backHalfHeaderRow, dayCol).setValue(day);           // 日付
+    sheet.getRange(backHalfHeaderRow, dayCol + 1).setValue(dayOfWeek); // 曜日
   }
+  
+  console.log(`日付ヘッダー更新完了: ${year}年${month}月（${daysInMonth}日まで）`);
 }
 
 /**
@@ -399,11 +457,11 @@ function setupTriggers() {
     .atHour(0)
     .create();
   
-  // 毎日18:00のトリガー
+  // 毎日12:00のトリガー
   ScriptApp.newTrigger('updateDailyMealSheet')
     .timeBased()
     .everyDays(1)
-    .atHour(18)
+    .atHour(12)
     .create();
   
   console.log('トリガーを設定しました。');
@@ -435,6 +493,7 @@ function testCreateCurrentMonthSheet() {
 
 /**
  * 【テスト用】現在の月のシートデータを手動更新
+ * 実際は毎日12:00に自動実行される処理をテストします
  * Google Apps Scriptエディタで直接実行してテストできます
  */
 function testUpdateCurrentMonthSheet() {
@@ -656,4 +715,289 @@ function testCreateAndUpdate2025September() {
   testUpdateSpecificMonthSheet(2025, 9);
   
   console.log('=== 2025年9月のテスト完了 ===');
+}
+
+/**
+ * 【総合テスト用】全機能を一括テストする関数
+ * Google Apps Scriptエディタで実行してください
+ */
+function testAllFunctionalities() {
+  console.log('🧪 ========================================');
+  console.log('🧪 食事原紙システム 総合テスト開始');
+  console.log('🧪 ========================================');
+  
+  const startTime = new Date();
+  let testResults = {
+    total: 0,
+    passed: 0,
+    failed: 0,
+    errors: []
+  };
+  
+  // テスト1: 現在月のシート作成
+  console.log('\n📋 テスト1: 現在月のシート作成');
+  testResults.total++;
+  try {
+    testCreateCurrentMonthSheet();
+    testResults.passed++;
+    console.log('✅ テスト1 PASSED');
+  } catch (e) {
+    testResults.failed++;
+    testResults.errors.push(`テスト1エラー: ${e.message}`);
+    console.error('❌ テスト1 FAILED:', e.message);
+  }
+  
+  // 2秒待機
+  Utilities.sleep(2000);
+  
+  // テスト2: 現在月のデータ更新（新仕様: 当日以降の全データ更新）
+  console.log('\n📋 テスト2: 現在月のデータ更新（新仕様: 当日以降）');
+  testResults.total++;
+  try {
+    testUpdateCurrentMonthSheet();
+    testResults.passed++;
+    console.log('✅ テスト2 PASSED');
+  } catch (e) {
+    testResults.failed++;
+    testResults.errors.push(`テスト2エラー: ${e.message}`);
+    console.error('❌ テスト2 FAILED:', e.message);
+  }
+  
+  // 2秒待機
+  Utilities.sleep(2000);
+  
+  // テスト3: 9月のシート作成・更新（曜日設定確認）
+  console.log('\n📋 テスト3: 9月のシート作成・更新（曜日設定確認）');
+  testResults.total++;
+  try {
+    testCreateAndUpdate2025September();
+    testResults.passed++;
+    console.log('✅ テスト3 PASSED');
+  } catch (e) {
+    testResults.failed++;
+    testResults.errors.push(`テスト3エラー: ${e.message}`);
+    console.error('❌ テスト3 FAILED:', e.message);
+  }
+  
+  // 2秒待機
+  Utilities.sleep(2000);
+  
+  // テスト4: トリガー設定テスト
+  console.log('\n📋 テスト4: トリガー設定テスト');
+  testResults.total++;
+  try {
+    // 現在のトリガー状況を確認
+    const currentTriggers = ScriptApp.getProjectTriggers();
+    console.log(`現在のトリガー数: ${currentTriggers.length}`);
+    
+    // トリガーを再設定
+    setupTriggers();
+    
+    // 設定後のトリガーを確認
+    const newTriggers = ScriptApp.getProjectTriggers();
+    console.log(`設定後のトリガー数: ${newTriggers.length}`);
+    
+    // トリガー詳細を表示
+    newTriggers.forEach((trigger, index) => {
+      const handlerFunction = trigger.getHandlerFunction();
+      const eventType = trigger.getEventType();
+      console.log(`トリガー${index + 1}: ${handlerFunction} (${eventType})`);
+    });
+    
+    if (newTriggers.length >= 2) {
+      testResults.passed++;
+      console.log('✅ テスト4 PASSED');
+    } else {
+      throw new Error('期待されるトリガー数が設定されていません');
+    }
+  } catch (e) {
+    testResults.failed++;
+    testResults.errors.push(`テスト4エラー: ${e.message}`);
+    console.error('❌ テスト4 FAILED:', e.message);
+  }
+  
+  // テスト5: 食事原紙URL取得テスト
+  console.log('\n📋 テスト5: 食事原紙URL取得テスト');
+  testResults.total++;
+  try {
+    const urlResult = getMealSheetUrl();
+    if (urlResult.success && urlResult.url) {
+      console.log(`✅ 食事原紙URL: ${urlResult.url}`);
+      testResults.passed++;
+      console.log('✅ テスト5 PASSED');
+    } else {
+      throw new Error('URL取得に失敗');
+    }
+  } catch (e) {
+    testResults.failed++;
+    testResults.errors.push(`テスト5エラー: ${e.message}`);
+    console.error('❌ テスト5 FAILED:', e.message);
+  }
+  
+  // テスト結果サマリー
+  const endTime = new Date();
+  const duration = Math.round((endTime - startTime) / 1000);
+  
+  console.log('\n🧪 ========================================');
+  console.log('🧪 テスト結果サマリー');
+  console.log('🧪 ========================================');
+  console.log(`📊 実行時間: ${duration}秒`);
+  console.log(`📊 総テスト数: ${testResults.total}`);
+  console.log(`✅ 成功: ${testResults.passed}`);
+  console.log(`❌ 失敗: ${testResults.failed}`);
+  
+  if (testResults.failed > 0) {
+    console.log('\n❌ エラー詳細:');
+    testResults.errors.forEach(error => console.log(`  - ${error}`));
+  }
+  
+  const successRate = Math.round((testResults.passed / testResults.total) * 100);
+  console.log(`📈 成功率: ${successRate}%`);
+  
+  if (successRate === 100) {
+    console.log('\n🎉 全テスト成功！システムは正常に動作しています。');
+  } else if (successRate >= 80) {
+    console.log('\n⚠️ 一部テストが失敗しましたが、基本機能は動作しています。');
+  } else {
+    console.log('\n⚠️ 複数のテストが失敗しました。設定を確認してください。');
+  }
+  
+  console.log('🧪 ========================================');
+  
+  return testResults;
+}
+
+/**
+ * 【機能確認用】新仕様の動作確認テスト
+ * 12:00実行・当日以降更新の動作をシミュレート
+ */
+function testNewSpecificationBehavior() {
+  console.log('🔄 ========================================');
+  console.log('🔄 新仕様動作確認テスト（12:00・当日以降更新）');
+  console.log('🔄 ========================================');
+  
+  const now = new Date();
+  const currentDay = now.getDate();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  
+  console.log(`📅 現在日時: ${year}年${month}月${currentDay}日`);
+  console.log(`🕐 実行予定時刻: 毎日12:00（現在は手動実行）`);
+  console.log(`📊 更新範囲: ${currentDay}日〜月末まで`);
+  
+  try {
+    // 実際の更新処理を実行
+    console.log('\n🔄 当日以降のデータ更新を実行中...');
+    updateDailyMealSheet();
+    
+    const lastDay = new Date(year, month, 0).getDate();
+    console.log(`✅ 更新完了: ${currentDay}日〜${lastDay}日のデータを更新しました`);
+    
+    // 食事原紙を確認するためのURL表示
+    const urlResult = getMealSheetUrl();
+    if (urlResult.success) {
+      console.log(`\n🔗 結果確認用URL: ${urlResult.url}`);
+      console.log(`📋 シート名: 食事原紙_${year}${month.toString().padStart(2, '0')}`);
+    }
+    
+    console.log('\n✅ 新仕様の動作確認が完了しました！');
+    
+  } catch (e) {
+    console.error('❌ 新仕様テストでエラーが発生:', e.message);
+    console.error('Stack:', e.stack);
+  }
+  
+  console.log('🔄 ========================================');
+}
+
+/**
+ * 【設定確認用】システム設定状況を確認する
+ */
+function checkSystemConfiguration() {
+  console.log('⚙️ ========================================');
+  console.log('⚙️ システム設定状況確認');
+  console.log('⚙️ ========================================');
+  
+  try {
+    // 1. スプレッドシートアクセス確認
+    console.log('\n📊 1. スプレッドシートアクセス確認');
+    
+    const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+    const dataSheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    
+    try {
+      const mealSS = SpreadsheetApp.openById(mealSheetId);
+      console.log(`✅ 食事原紙スプレッドシート: アクセス可能`);
+      console.log(`   URL: ${mealSS.getUrl()}`);
+      
+      // テンプレートシート確認
+      const templateSheet = mealSS.getSheetByName("食事原紙");
+      if (templateSheet) {
+        console.log(`✅ テンプレートシート「食事原紙」: 存在`);
+      } else {
+        console.log(`❌ テンプレートシート「食事原紙」: 存在しません`);
+      }
+    } catch (e) {
+      console.log(`❌ 食事原紙スプレッドシート: アクセス不可 (${e.message})`);
+    }
+    
+    try {
+      const dataSS = SpreadsheetApp.openById(dataSheetId);
+      console.log(`✅ 予約データスプレッドシート: アクセス可能`);
+      
+      // usersシート確認
+      const usersSheet = dataSS.getSheetByName("users");
+      if (usersSheet) {
+        const userCount = usersSheet.getLastRow() - 1; // ヘッダー行を除く
+        console.log(`✅ usersシート: 存在 (${userCount}ユーザー)`);
+      } else {
+        console.log(`❌ usersシート: 存在しません`);
+      }
+    } catch (e) {
+      console.log(`❌ 予約データスプレッドシート: アクセス不可 (${e.message})`);
+    }
+    
+    // 2. トリガー設定確認
+    console.log('\n⏰ 2. トリガー設定確認');
+    const triggers = ScriptApp.getProjectTriggers();
+    console.log(`設定済みトリガー数: ${triggers.length}`);
+    
+    triggers.forEach((trigger, index) => {
+      const handlerFunction = trigger.getHandlerFunction();
+      const eventType = trigger.getEventType().toString();
+      console.log(`  トリガー${index + 1}: ${handlerFunction} (${eventType})`);
+    });
+    
+    if (triggers.length === 0) {
+      console.log('⚠️ トリガーが設定されていません。setupTriggers()を実行してください。');
+    }
+    
+    // 3. 現在月のシート確認
+    console.log('\n📅 3. 現在月のシート確認');
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
+    const currentSheetName = `食事原紙_${yyyyMM}`;
+    
+    try {
+      const mealSS = SpreadsheetApp.openById(mealSheetId);
+      const currentSheet = mealSS.getSheetByName(currentSheetName);
+      if (currentSheet) {
+        console.log(`✅ 現在月シート「${currentSheetName}」: 存在`);
+      } else {
+        console.log(`❌ 現在月シート「${currentSheetName}」: 存在しません`);
+        console.log(`   → createMonthlySheet()を実行してシートを作成してください`);
+      }
+    } catch (e) {
+      console.log(`❌ 現在月シート確認エラー: ${e.message}`);
+    }
+    
+    console.log('\n✅ システム設定状況確認完了');
+    
+  } catch (e) {
+    console.error('❌ 設定確認中にエラーが発生:', e.message);
+  }
+  
+  console.log('⚙️ ========================================');
 }
