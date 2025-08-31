@@ -184,6 +184,46 @@ function updateDailyMealSheet() {
 }
 
 /**
+ * トリガーを設定する関数（手動で1回実行する）
+ * 毎月1日00:00に月次シート作成、毎日12:00にデータ更新を自動実行
+ */
+function setupTriggers() {
+  console.log('=== トリガー設定開始 ===');
+  
+  // 既存のトリガーを削除
+  const existingTriggers = ScriptApp.getProjectTriggers();
+  existingTriggers.forEach(trigger => {
+    ScriptApp.deleteTrigger(trigger);
+  });
+  console.log(`既存トリガー ${existingTriggers.length} 個を削除しました。`);
+  
+  // 毎月1日00:00のトリガー（月次シート作成）
+  ScriptApp.newTrigger('createMonthlySheet')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(0)
+    .create();
+  console.log('✅ 毎月1日00:00のトリガー（createMonthlySheet）を設定しました。');
+  
+  // 毎日12:00のトリガー（データ更新）
+  ScriptApp.newTrigger('updateDailyMealSheet')
+    .timeBased()
+    .everyDays(1)
+    .atHour(12)
+    .create();
+  console.log('✅ 毎日12:00のトリガー（updateDailyMealSheet）を設定しました。');
+  
+  // 設定確認
+  const newTriggers = ScriptApp.getProjectTriggers();
+  console.log(`トリガー設定完了: ${newTriggers.length} 個のトリガーが有効になりました。`);
+  
+  console.log('=== トリガー設定完了 ===');
+  console.log('自動実行スケジュール:');
+  console.log('- 毎月1日 00:00: 新しい月のシート作成');
+  console.log('- 毎日 12:00: 当日以降の予約データ更新');
+}
+
+/**
  * 単一日の予約データを処理
  */
 function processSingleDayReservations(dayData, isDinner, dayOfMonth, userRowMap_1_16, userRowMap_17_31, dataToUpdate) {
@@ -438,33 +478,6 @@ function processReservations(reservations, isDinner, userRowMap_1_16, userRowMap
       });
     }
   });
-}
-
-/**
- * トリガーを設定する関数（手動で1回実行する）
- */
-function setupTriggers() {
-  // 既存のトリガーを削除
-  const triggers = ScriptApp.getProjectTriggers();
-  triggers.forEach(trigger => {
-    ScriptApp.deleteTrigger(trigger);
-  });
-  
-  // 毎月1日00:00のトリガー
-  ScriptApp.newTrigger('createMonthlySheet')
-    .timeBased()
-    .onMonthDay(1)
-    .atHour(0)
-    .create();
-  
-  // 毎日12:00のトリガー
-  ScriptApp.newTrigger('updateDailyMealSheet')
-    .timeBased()
-    .everyDays(1)
-    .atHour(12)
-    .create();
-  
-  console.log('トリガーを設定しました。');
 }
 
 // ==========================================
