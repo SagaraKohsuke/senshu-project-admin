@@ -1432,118 +1432,223 @@ function generateMonthlyMealSheetForTest(year, month, testMealSheetId, dataSheet
 }
 
 /**
- * 簡単テスト：一時スプレッドシートで土日マーカーをテスト（修正版）
+ * テスト用：既存の食事原紙スプレッドシートに新しいシートを追加して土日マーカーをテスト
+ * 本番の食事原紙テンプレートを参照して正確にテストします
  * @return {Object} 結果
  */
-function testWeekendMarkerSimplified() {
+function testWeekendMarkerInExistingSheet() {
   try {
-    console.log('=== 【簡単一時テスト】土日マーカー機能テスト開始 ===');
+    console.log('=== 【既存シートテスト】土日マーカー機能テスト開始 ===');
     
-    // 一時的なテスト用スプレッドシートを作成
-    const tempSpreadsheet = SpreadsheetApp.create('簡単テスト用食事原紙_' + new Date().getTime());
-    const tempSheetId = tempSpreadsheet.getId();
+    // 本番の食事原紙スプレッドシートを使用
+    const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+    const mealSs = SpreadsheetApp.openById(mealSheetId);
     
-    console.log('🆕 一時テストスプレッドシート作成:', tempSheetId);
-    console.log('🔗 テストスプレッドシートURL:', tempSpreadsheet.getUrl());
+    console.log('📋 既存の食事原紙スプレッドシートに接続:', mealSheetId);
+    console.log('🔗 スプレッドシートURL:', mealSs.getUrl());
     
-    // アクティブシートを取得して基本構造を作成
-    const testSheet = tempSpreadsheet.getActiveSheet();
-    testSheet.setName('TEST_食事原紙_202509');
+    // 既存の「食事原紙」テンプレートシートを参照
+    const templateSheet = mealSs.getSheetByName("食事原紙");
+    if (!templateSheet) {
+      return {
+        success: false,
+        message: "食事原紙テンプレートシートが見つかりません。"
+      };
+    }
     
-    // 基本構造を作成
-    testSheet.getRange(1, 1).setValue('2025年9月度食事申し込み表　前半【簡単テスト】');
-    testSheet.getRange(36, 1).setValue('2025年9月度食事申し込み表　後半【簡単テスト】');
+    console.log('✅ 食事原紙テンプレートシート確認済み');
     
-    // 2025年9月の曜日情報
+    // テスト用シート名（タイムスタンプ付き）
     const testYear = 2025;
     const testMonth = 9;
+    const timestamp = new Date().getTime();
+    const testSheetName = `TEST_食事原紙_${testYear}${testMonth.toString().padStart(2, '0')}_${timestamp}`;
+    
+    // 既存のテストシートがあれば削除
+    const existingTestSheet = mealSs.getSheetByName(testSheetName);
+    if (existingTestSheet) {
+      mealSs.deleteSheet(existingTestSheet);
+      console.log('🗑️ 既存のテストシート削除:', testSheetName);
+    }
+    
+    // テンプレートシートをコピーしてテスト用シートを作成
+    const testSheet = templateSheet.copyTo(mealSs);
+    testSheet.setName(testSheetName);
+    
+    console.log('🛠️ テストシート作成:', testSheetName);
+    console.log('📋 本番テンプレートから正確にコピーしました');
+    
+    // 月の日数と曜日名
     const daysInMonth = new Date(testYear, testMonth, 0).getDate();
     const dayOfWeekNames = ['日', '月', '火', '水', '木', '金', '土'];
     
     console.log(`テスト対象: ${testYear}年${testMonth}月 (${daysInMonth}日間)`);
     
-    // 前半部分（1-16日）のヘッダー作成と土日マーカー
-    let weekendCount = 0;
+    // タイトル更新
+    testSheet.getRange(1, 1).setValue(testYear + "年" + testMonth + "月度食事申し込み表　前半【テスト】");
+    testSheet.getRange(36, 1).setValue(testYear + "年" + testMonth + "月度食事申し込み表　後半【テスト】");
     
+    // 前半部分（1-16日）のヘッダー更新
     for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
       const date = new Date(testYear, testMonth - 1, day);
-      const dayOfWeek = date.getDay();
-      const dayName = dayOfWeekNames[dayOfWeek];
-      const dayCol = 3 + (day - 1) * 2;
-      const dayNameCol = dayCol + 1;
+      const dayOfWeek = dayOfWeekNames[date.getDay()];
+      const dayCol = 3 + (day - 1) * 2; // 朝食列
+      const dayNameCol = dayCol + 1; // 夕食列
       
-      // ヘッダー設定
       testSheet.getRange(2, dayCol).setValue(day);
-      testSheet.getRange(2, dayNameCol).setValue(dayName);
-      
-      // 土日の場合、マーカー設定
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        // 5-37行目の範囲で黄色マーカー
-        for (let row = 5; row <= 37; row++) {
-          testSheet.getRange(row, dayCol).setBackground('#FFFF00');
-          testSheet.getRange(row, dayNameCol).setBackground('#FFFF00');
-        }
-        weekendCount++;
-        console.log(`🎨 前半 ${day}日(${dayName}) マーカー設定完了 - 列${dayCol},${dayNameCol}`);
-      }
+      testSheet.getRange(2, dayNameCol).setValue(dayOfWeek);
     }
     
-    // 後半部分（17-30日）のヘッダー作成と土日マーカー
+    // 後半部分（17-31日）のヘッダー更新（行38）
     for (let day = 17; day <= daysInMonth; day++) {
       const date = new Date(testYear, testMonth - 1, day);
-      const dayOfWeek = date.getDay();
-      const dayName = dayOfWeekNames[dayOfWeek];
+      const dayOfWeek = dayOfWeekNames[date.getDay()];
       const dayCol = 3 + (day - 17) * 2;
       const dayNameCol = dayCol + 1;
       
-      // ヘッダー設定
       testSheet.getRange(38, dayCol).setValue(day);
-      testSheet.getRange(38, dayNameCol).setValue(dayName);
-      
-      // 土日の場合、マーカー設定
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        // 45-77行目の範囲で黄色マーカー
-        for (let row = 45; row <= 77; row++) {
-          testSheet.getRange(row, dayCol).setBackground('#FFFF00');
-          testSheet.getRange(row, dayNameCol).setBackground('#FFFF00');
+      testSheet.getRange(38, dayNameCol).setValue(dayOfWeek);
+    }
+    
+    // データクリア処理（本番と同じロジック）
+    console.log('🧹 データクリア処理開始');
+    
+    // 前半部分のデータクリア（行5-35、列C以降）
+    for (let row = 5; row <= 35; row++) {
+      for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
+        const date = new Date(testYear, testMonth - 1, day);
+        const breakfastCol = 3 + (day - 1) * 2; // 朝食列
+        const dinnerCol = breakfastCol + 1; // 夕食列
+        
+        // 朝食セルクリア（数値のみ）
+        const breakfastCell = testSheet.getRange(row, breakfastCol);
+        const breakfastValue = breakfastCell.getValue();
+        if (typeof breakfastValue === 'number' || breakfastValue === 1) {
+          breakfastCell.setValue('');
         }
-        weekendCount++;
-        console.log(`🎨 後半 ${day}日(${dayName}) マーカー設定完了 - 列${dayCol},${dayNameCol}`);
+        
+        // 夕食セル（土曜日以外、数値のみ）クリア
+        if (date.getDay() !== 6) { // 土曜日でない場合
+          const dinnerCell = testSheet.getRange(row, dinnerCol);
+          const dinnerValue = dinnerCell.getValue();
+          if (typeof dinnerValue === 'number' || dinnerValue === 1) {
+            dinnerCell.setValue('');
+          }
+        }
       }
     }
     
-    console.log('✅ 【簡単一時テスト】土日マーカー設定完了');
+    // 後半部分のデータクリア（行40-75、列C以降）
+    for (let row = 40; row <= 75; row++) {
+      for (let day = 17; day <= daysInMonth; day++) {
+        const date = new Date(testYear, testMonth - 1, day);
+        const breakfastCol = 3 + (day - 17) * 2; // 朝食列
+        const dinnerCol = breakfastCol + 1; // 夕食列
+        
+        // 朝食セルクリア（数値のみ）
+        const breakfastCell = testSheet.getRange(row, breakfastCol);
+        const breakfastValue = breakfastCell.getValue();
+        if (typeof breakfastValue === 'number' || breakfastValue === 1) {
+          breakfastCell.setValue('');
+        }
+        
+        // 夕食セル（土曜日以外、数値のみ）クリア
+        if (date.getDay() !== 6) { // 土曜日でない場合
+          const dinnerCell = testSheet.getRange(row, dinnerCol);
+          const dinnerValue = dinnerCell.getValue();
+          if (typeof dinnerValue === 'number' || dinnerValue === 1) {
+            dinnerCell.setValue('');
+          }
+        }
+      }
+    }
+    
+    // 🎨 土日マーカー設定（本番の仕様通り）
+    console.log('🎨 土日マーカー設定開始');
+    let weekendCount = 0;
+    
+    // 前半部分（1-16日、5-37行目）の土日マーカー
+    for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
+      const date = new Date(testYear, testMonth - 1, day);
+      const dayOfWeek = date.getDay();
+      
+      if (dayOfWeek === 0 || dayOfWeek === 6) { // 日曜日または土曜日
+        const dayCol = 3 + (day - 1) * 2; // 朝食列
+        const dayNameCol = dayCol + 1; // 夕食列
+        
+        // 5-37行目の範囲で黄色マーカーを設定
+        const breakfastRange = testSheet.getRange(5, dayCol, 33, 1); // 5-37行目 (33行)
+        const dinnerRange = testSheet.getRange(5, dayNameCol, 33, 1);
+        
+        breakfastRange.setBackground('#FFFF00'); // 黄色
+        dinnerRange.setBackground('#FFFF00'); // 黄色
+        
+        weekendCount++;
+        console.log(`🎨 前半 ${day}日(${dayOfWeek === 0 ? '日曜日' : '土曜日'}) マーカー設定完了 - 列${dayCol},${dayNameCol} (5-37行目)`);
+      }
+    }
+    
+    // 後半部分（17-31日、45-77行目）の土日マーカー
+    for (let day = 17; day <= daysInMonth; day++) {
+      const date = new Date(testYear, testMonth - 1, day);
+      const dayOfWeek = date.getDay();
+      
+      if (dayOfWeek === 0 || dayOfWeek === 6) { // 日曜日または土曜日
+        const dayCol = 3 + (day - 17) * 2; // 朝食列
+        const dayNameCol = dayCol + 1; // 夕食列
+        
+        // 45-77行目の範囲で黄色マーカーを設定
+        const breakfastRange = testSheet.getRange(45, dayCol, 33, 1); // 45-77行目 (33行)
+        const dinnerRange = testSheet.getRange(45, dayNameCol, 33, 1);
+        
+        breakfastRange.setBackground('#FFFF00'); // 黄色
+        dinnerRange.setBackground('#FFFF00'); // 黄色
+        
+        weekendCount++;
+        console.log(`🎨 後半 ${day}日(${dayOfWeek === 0 ? '日曜日' : '土曜日'}) マーカー設定完了 - 列${dayCol},${dayNameCol} (45-77行目)`);
+      }
+    }
+    
+    console.log('✅ 土日マーカー設定完了');
     console.log('📊 土日マーカー設定数:', weekendCount + '日分');
-    console.log('🔗 確認用URL:', tempSpreadsheet.getUrl());
+    
+    const testSheetUrl = mealSs.getUrl() + "#gid=" + testSheet.getSheetId();
+    console.log('🔗 テスト結果確認URL:', testSheetUrl);
     console.log('');
     console.log('📋 確認項目:');
     console.log('  ✓ 土日の列が黄色でハイライトされているか');
     console.log('  ✓ 前半: 5-37行目の範囲でマーカーが設定されているか');
     console.log('  ✓ 後半: 45-77行目の範囲でマーカーが設定されているか');
+    console.log('  ✓ 本番テンプレートと同じ構造になっているか');
     console.log('');
-    console.log('⚠️ テスト完了後、以下のスプレッドシートを削除してください:');
-    console.log('   ', tempSpreadsheet.getUrl());
+    console.log('⚠️ テスト完了後、以下のテストシートを削除してください:');
+    console.log('   シート名:', testSheetName);
+    console.log('   スプレッドシートURL:', mealSs.getUrl());
     
     return {
       success: true,
-      message: '簡単一時テスト完了 - 土日マーカー機能正常動作',
-      tempSpreadsheetId: tempSheetId,
-      tempSpreadsheetUrl: tempSpreadsheet.getUrl(),
+      message: '既存シートテスト完了 - 土日マーカー機能正常動作',
+      mealSpreadsheetId: mealSheetId,
+      mealSpreadsheetUrl: mealSs.getUrl(),
+      testSheetName: testSheetName,
+      testSheetUrl: testSheetUrl,
       weekendCount: weekendCount,
       testDetails: {
         year: testYear,
         month: testMonth,
         totalDays: daysInMonth,
-        markedWeekends: weekendCount
+        markedWeekends: weekendCount,
+        frontRange: '5-37行目',
+        backRange: '45-77行目'
       }
     };
     
   } catch (e) {
-    console.error('testWeekendMarkerSimplified Error: ' + e.message);
+    console.error('testWeekendMarkerInExistingSheet Error: ' + e.message);
     console.error('Error stack: ' + e.stack);
     return {
       success: false,
-      message: '簡単一時テスト中にエラーが発生しました: ' + e.message,
+      message: '既存シートテスト中にエラーが発生しました: ' + e.message,
       error: e.stack
     };
   }
