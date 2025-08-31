@@ -1238,77 +1238,178 @@ function testWeekendMarkerFunction() {
 }
 
 /**
- * テスト用：複数月の土曜日・日曜日マーカー機能を一括テスト
+ * テスト用：専用テストスプレッドシートでマーカー機能を検証（本番データに影響なし）
+ * 事前に以下の手順でテストスプレッドシートを準備してください：
+ * 1. 本番食事原紙スプレッドシートをコピー
+ * 2. 新しいスプレッドシートのIDをこの関数内で設定
  * @return {Object} 結果
  */
-function testMultipleMonthsWeekendMarkers() {
+function testWeekendMarkerFunctionSafe() {
   try {
-    console.log('=== 複数月土日マーカーテスト開始 ===');
+    console.log('=== 【安全テスト】土曜日・日曜日マーカー機能テスト開始 ===');
     
-    const testMonths = [
-      { year: 2025, month: 8 },  // 2025年8月
-      { year: 2025, month: 9 },  // 2025年9月
-      { year: 2025, month: 10 }  // 2025年10月
-    ];
+    // ⚠️ ここにテスト用スプレッドシートIDを設定してください
+    const TEST_MEAL_SHEET_ID = "YOUR_TEST_SPREADSHEET_ID_HERE"; // ← ここを変更
+    const TEST_DATA_SHEET_ID = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk"; // データは本番を参照
     
-    const results = [];
-    
-    for (const testMonth of testMonths) {
-      console.log(`--- ${testMonth.year}年${testMonth.month}月テスト開始 ---`);
-      
-      const result = generateMonthlyMealSheet(testMonth.year, testMonth.month);
-      
-      if (result.success) {
-        // 土日の日数をカウント
-        const daysInMonth = new Date(testMonth.year, testMonth.month, 0).getDate();
-        let weekendCount = 0;
-        
-        for (let day = 1; day <= daysInMonth; day++) {
-          const date = new Date(testMonth.year, testMonth.month - 1, day);
-          const dayOfWeek = date.getDay();
-          if (dayOfWeek === 0 || dayOfWeek === 6) {
-            weekendCount++;
-          }
-        }
-        
-        console.log(`✅ ${testMonth.year}年${testMonth.month}月 完了 - 土日: ${weekendCount}日`);
-        results.push({
-          year: testMonth.year,
-          month: testMonth.month,
-          success: true,
-          weekendCount: weekendCount,
-          sheetName: result.sheetName
-        });
-      } else {
-        console.log(`❌ ${testMonth.year}年${testMonth.month}月 失敗: ${result.message}`);
-        results.push({
-          year: testMonth.year,
-          month: testMonth.month,
-          success: false,
-          error: result.message
-        });
-      }
+    if (TEST_MEAL_SHEET_ID === "YOUR_TEST_SPREADSHEET_ID_HERE") {
+      return {
+        success: false,
+        message: "❌ テスト用スプレッドシートIDを設定してください。testWeekendMarkerFunctionSafe()内のTEST_MEAL_SHEET_IDを変更してください。"
+      };
     }
     
-    const successCount = results.filter(r => r.success).length;
-    const totalWeekends = results.filter(r => r.success).reduce((sum, r) => sum + r.weekendCount, 0);
+    console.log('🧪 テスト用スプレッドシートを使用:', TEST_MEAL_SHEET_ID);
     
-    console.log('=== 複数月テスト結果 ===');
-    console.log(`成功: ${successCount}/${testMonths.length}月`);
-    console.log(`総土日数: ${totalWeekends}日`);
+    const testYear = 2025;
+    const testMonth = 9;
     
-    return {
-      success: successCount === testMonths.length,
-      message: `複数月土日マーカーテスト完了 - 成功: ${successCount}/${testMonths.length}月`,
-      results: results,
-      totalWeekends: totalWeekends
-    };
+    // テスト専用の食事原紙生成関数を呼び出し
+    const result = generateMonthlyMealSheetForTest(testYear, testMonth, TEST_MEAL_SHEET_ID, TEST_DATA_SHEET_ID);
+    
+    if (result.success) {
+      console.log('✅ 【テスト】食事原紙生成成功:', result.sheetName);
+      console.log('✅ 【テスト】黄色マーカー設定完了');
+      console.log('🔗 テスト結果URL:', result.url);
+      console.log('ℹ️  本番データには影響ありません');
+      
+      return {
+        success: true,
+        message: '土曜日・日曜日マーカー機能テスト完了（テスト専用）',
+        testSpreadsheetId: TEST_MEAL_SHEET_ID,
+        url: result.url
+      };
+    } else {
+      return {
+        success: false,
+        message: 'テスト実行失敗: ' + result.message
+      };
+    }
     
   } catch (e) {
-    console.error('testMultipleMonthsWeekendMarkers Error: ' + e.message);
+    console.error('testWeekendMarkerFunctionSafe Error: ' + e.message);
     return {
       success: false,
       message: 'テスト実行中にエラーが発生しました: ' + e.message
+    };
+  }
+}
+
+/**
+ * テスト専用の食事原紙生成関数
+ * @param {number} year 年
+ * @param {number} month 月
+ * @param {string} testMealSheetId テスト用食事原紙スプレッドシートID
+ * @param {string} dataSheetId データスプレッドシートID
+ * @return {Object} 結果
+ */
+function generateMonthlyMealSheetForTest(year, month, testMealSheetId, dataSheetId) {
+  try {
+    const mealSs = SpreadsheetApp.openById(testMealSheetId);
+    const dataSs = SpreadsheetApp.openById(dataSheetId);
+    
+    console.log('🧪 テスト食事原紙生成開始:', {
+      year: year,
+      month: month,
+      testMealSheetId: testMealSheetId
+    });
+    
+    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const mealSheetName = "TEST_食事原紙_" + yyyyMM; // テスト用プレフィックス
+    
+    // 既存テストシートがある場合は削除
+    const existingSheet = mealSs.getSheetByName(mealSheetName);
+    if (existingSheet) {
+      mealSs.deleteSheet(existingSheet);
+      console.log('🧪 既存テストシートを削除:', mealSheetName);
+    }
+    
+    // テンプレートシートをコピー
+    const templateSheet = mealSs.getSheetByName("食事原紙");
+    if (!templateSheet) {
+      return {
+        success: false,
+        message: "テスト用スプレッドシートに「食事原紙」テンプレートが見つかりません。"
+      };
+    }
+    
+    const newSheet = templateSheet.copyTo(mealSs);
+    newSheet.setName(mealSheetName);
+    
+    // 以下、generateMonthlyMealSheetと同じロジックを適用
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const dayOfWeekNames = ['日', '月', '火', '水', '木', '金', '土'];
+    
+    // タイトル更新
+    newSheet.getRange(1, 1).setValue(year + "年" + month + "月度食事申し込み表　前半【テスト】");
+    newSheet.getRange(36, 1).setValue(year + "年" + month + "月度食事申し込み表　後半【テスト】");
+    
+    // ヘッダー更新（前半・後半）
+    for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = dayOfWeekNames[date.getDay()];
+      const dayCol = 3 + (day - 1) * 2;
+      const dayNameCol = dayCol + 1;
+      newSheet.getRange(2, dayCol).setValue(day);
+      newSheet.getRange(2, dayNameCol).setValue(dayOfWeek);
+    }
+    
+    for (let day = 17; day <= daysInMonth; day++) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = dayOfWeekNames[date.getDay()];
+      const dayCol = 3 + (day - 17) * 2;
+      const dayNameCol = dayCol + 1;
+      newSheet.getRange(38, dayCol).setValue(day);
+      newSheet.getRange(38, dayNameCol).setValue(dayOfWeek);
+    }
+    
+    // 🎨 土日マーカー設定（修正版の5-37行目、45-77行目）
+    console.log('🎨 テスト：土日マーカー設定開始');
+    
+    // 前半（1-16日、5-37行目）
+    for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = date.getDay();
+      
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        const dayCol = 3 + (day - 1) * 2;
+        const dayNameCol = dayCol + 1;
+        const breakfastRange = newSheet.getRange(5, dayCol, 33, 1);
+        const dinnerRange = newSheet.getRange(5, dayNameCol, 33, 1);
+        breakfastRange.setBackground('#FFFF00');
+        dinnerRange.setBackground('#FFFF00');
+        console.log(`🎨 前半 ${day}日(${dayOfWeek === 0 ? '日曜日' : '土曜日'}) マーカー設定完了`);
+      }
+    }
+    
+    // 後半（17-31日、45-77行目）
+    for (let day = 17; day <= daysInMonth; day++) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = date.getDay();
+      
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        const dayCol = 3 + (day - 17) * 2;
+        const dayNameCol = dayCol + 1;
+        const breakfastRange = newSheet.getRange(45, dayCol, 33, 1);
+        const dinnerRange = newSheet.getRange(45, dayNameCol, 33, 1);
+        breakfastRange.setBackground('#FFFF00');
+        dinnerRange.setBackground('#FFFF00');
+        console.log(`🎨 後半 ${day}日(${dayOfWeek === 0 ? '日曜日' : '土曜日'}) マーカー設定完了`);
+      }
+    }
+    
+    return {
+      success: true,
+      message: "【テスト】" + year + "年" + month + "月の食事原紙「" + mealSheetName + "」を作成しました。",
+      sheetName: mealSheetName,
+      url: mealSs.getUrl() + "#gid=" + newSheet.getSheetId()
+    };
+    
+  } catch (e) {
+    console.error('generateMonthlyMealSheetForTest Error: ' + e.message);
+    return {
+      success: false,
+      message: "テスト食事原紙の生成中にエラーが発生しました: " + e.message
     };
   }
 }
