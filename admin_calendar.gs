@@ -1477,8 +1477,8 @@ function testWeekendMarkerWithTempSheet() {
     
     console.log('📅 土日の一覧:', weekendDays);
     
-    // テスト専用の食事原紙生成を実行
-    const result = generateMealSheetInTempSpreadsheet(testYear, testMonth, tempSpreadsheet);
+    // テスト専用の食事原紙生成を実行（関数内で直接処理）
+    const result = generateMealSheetDirectly(testYear, testMonth, tempSpreadsheet, weekendDays);
     
     if (result.success) {
       console.log('✅ 【一時テスト】食事原紙生成成功:', result.sheetName);
@@ -1524,6 +1524,113 @@ function testWeekendMarkerWithTempSheet() {
       message: '一時テスト実行中にエラーが発生しました: ' + e.message
     };
   }
+  
+  // ローカル関数：直接食事原紙を生成
+  function generateMealSheetDirectly(year, month, spreadsheet, weekendDays) {
+    try {
+      const yyyyMM = year + (month < 10 ? "0" + month : month);
+      const testSheetName = "TEST_食事原紙_" + yyyyMM;
+      
+      // テンプレートシートをコピー
+      const templateSheet = spreadsheet.getSheetByName("食事原紙");
+      const newSheet = templateSheet.copyTo(spreadsheet);
+      newSheet.setName(testSheetName);
+      
+      console.log('🛠️ テストシート作成:', testSheetName);
+      
+      // 月の日数と曜日名
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const dayOfWeekNames = ['日', '月', '火', '水', '木', '金', '土'];
+      
+      // タイトル更新
+      newSheet.getRange(1, 1).setValue(year + "年" + month + "月度食事申し込み表　前半【テスト】");
+      newSheet.getRange(36, 1).setValue(year + "年" + month + "月度食事申し込み表　後半【テスト】");
+      
+      // 前半部分（1-16日）のヘッダー更新
+      for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
+        const date = new Date(year, month - 1, day);
+        const dayOfWeek = dayOfWeekNames[date.getDay()];
+        const dayCol = 3 + (day - 1) * 2;
+        const dayNameCol = dayCol + 1;
+        
+        newSheet.getRange(2, dayCol).setValue(day);
+        newSheet.getRange(2, dayNameCol).setValue(dayOfWeek);
+      }
+      
+      // 後半部分（17-31日）のヘッダー更新
+      for (let day = 17; day <= daysInMonth; day++) {
+        const date = new Date(year, month - 1, day);
+        const dayOfWeek = dayOfWeekNames[date.getDay()];
+        const dayCol = 3 + (day - 17) * 2;
+        const dayNameCol = dayCol + 1;
+        
+        newSheet.getRange(38, dayCol).setValue(day);
+        newSheet.getRange(38, dayNameCol).setValue(dayOfWeek);
+      }
+      
+      // 🎨 土日マーカー設定
+      console.log('🎨 土日マーカー設定開始');
+      let markerCount = 0;
+      
+      // 前半部分（1-16日、5-37行目）
+      for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
+        const date = new Date(year, month - 1, day);
+        const dayOfWeek = date.getDay();
+        
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          const dayCol = 3 + (day - 1) * 2;
+          const dayNameCol = dayCol + 1;
+          
+          // 5-37行目の範囲で黄色マーカー
+          const breakfastRange = newSheet.getRange(5, dayCol, 33, 1);
+          const dinnerRange = newSheet.getRange(5, dayNameCol, 33, 1);
+          
+          breakfastRange.setBackground('#FFFF00');
+          dinnerRange.setBackground('#FFFF00');
+          
+          markerCount++;
+          console.log(`🎨 前半 ${day}日(${dayOfWeek === 0 ? '日曜日' : '土曜日'}) マーカー設定 - 列${dayCol},${dayNameCol}`);
+        }
+      }
+      
+      // 後半部分（17-31日、45-77行目）
+      for (let day = 17; day <= daysInMonth; day++) {
+        const date = new Date(year, month - 1, day);
+        const dayOfWeek = date.getDay();
+        
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          const dayCol = 3 + (day - 17) * 2;
+          const dayNameCol = dayCol + 1;
+          
+          // 45-77行目の範囲で黄色マーカー
+          const breakfastRange = newSheet.getRange(45, dayCol, 33, 1);
+          const dinnerRange = newSheet.getRange(45, dayNameCol, 33, 1);
+          
+          breakfastRange.setBackground('#FFFF00');
+          dinnerRange.setBackground('#FFFF00');
+          
+          markerCount++;
+          console.log(`🎨 後半 ${day}日(${dayOfWeek === 0 ? '日曜日' : '土曜日'}) マーカー設定 - 列${dayCol},${dayNameCol}`);
+        }
+      }
+      
+      console.log(`🎨 土日マーカー設定完了 - 合計 ${markerCount} 日分`);
+      
+      return {
+        success: true,
+        message: `テスト食事原紙「${testSheetName}」作成完了`,
+        sheetName: testSheetName,
+        url: spreadsheet.getUrl() + "#gid=" + newSheet.getSheetId(),
+        markerCount: markerCount
+      };
+      
+    } catch (e) {
+      console.error('generateMealSheetDirectly Error: ' + e.message);
+      return {
+        success: false,
+        message: "テスト食事原紙の生成中にエラー: " + e.message
+      };
+    }
 }
 
 /**
