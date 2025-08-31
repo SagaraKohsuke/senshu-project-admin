@@ -422,6 +422,51 @@ function generateMonthlyMealSheet(year, month) {
       }
     }
     
+    // 6. 土曜日・日曜日の列に黄色マーカーを設定
+    console.log('土曜日・日曜日の列に黄色マーカーを設定開始');
+    
+    // 前半部分（1-16日）の土曜日・日曜日マーカー設定（5-37行目）
+    for (let day = 1; day <= Math.min(16, daysInMonth); day++) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = date.getDay(); // 0=日曜日, 6=土曜日
+      
+      if (dayOfWeek === 0 || dayOfWeek === 6) { // 日曜日または土曜日
+        const dayCol = 3 + (day - 1) * 2; // 朝食列
+        const dayNameCol = dayCol + 1; // 夕食列
+        
+        // 5-37行目の範囲で黄色マーカーを設定
+        const breakfastRange = newSheet.getRange(5, dayCol, 33, 1); // 5-37行目 (33行)
+        const dinnerRange = newSheet.getRange(5, dayNameCol, 33, 1);
+        
+        breakfastRange.setBackground('#FFFF00'); // 黄色
+        dinnerRange.setBackground('#FFFF00'); // 黄色
+        
+        console.log(`前半 ${day}日(${dayOfWeek === 0 ? '日曜日' : '土曜日'}) 列${dayCol},${dayNameCol}に黄色マーカー設定 (5-37行目)`);
+      }
+    }
+    
+    // 後半部分（17-31日）の土曜日・日曜日マーカー設定（45-77行目）
+    for (let day = 17; day <= daysInMonth; day++) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = date.getDay(); // 0=日曜日, 6=土曜日
+      
+      if (dayOfWeek === 0 || dayOfWeek === 6) { // 日曜日または土曜日
+        const dayCol = 3 + (day - 17) * 2; // 朝食列
+        const dayNameCol = dayCol + 1; // 夕食列
+        
+        // 45-77行目の範囲で黄色マーカーを設定
+        const breakfastRange = newSheet.getRange(45, dayCol, 33, 1); // 45-77行目 (33行)
+        const dinnerRange = newSheet.getRange(45, dayNameCol, 33, 1);
+        
+        breakfastRange.setBackground('#FFFF00'); // 黄色
+        dinnerRange.setBackground('#FFFF00'); // 黄色
+        
+        console.log(`後半 ${day}日(${dayOfWeek === 0 ? '日曜日' : '土曜日'}) 列${dayCol},${dayNameCol}に黄色マーカー設定`);
+      }
+    }
+    
+    console.log('✅ 土曜日・日曜日の黄色マーカー設定完了');
+    
     return {
       success: true,
       message: year + "年" + month + "月の食事原紙「" + mealSheetName + "」を作成しました。",
@@ -1117,6 +1162,153 @@ function getMonthlyReservationCounts(year, month) {
       message: '処理中にエラーが発生しました: ' + error.message,
       breakfast: [],
       dinner: []
+    };
+  }
+}
+
+/**
+ * テスト用：土曜日・日曜日の黄色マーカー機能を検証
+ * @return {Object} 結果
+ */
+function testWeekendMarkerFunction() {
+  try {
+    console.log('=== 土曜日・日曜日マーカー機能テスト開始 ===');
+    
+    // テスト対象月を指定（土日が含まれる月を選択）
+    const testYear = 2025;
+    const testMonth = 9; // 2025年9月（1日日曜日、7日土曜日、8日日曜日等）
+    
+    console.log(`テスト対象: ${testYear}年${testMonth}月`);
+    console.log('この月の土日の確認:');
+    
+    const daysInMonth = new Date(testYear, testMonth, 0).getDate();
+    const weekendDays = [];
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(testYear, testMonth - 1, day);
+      const dayOfWeek = date.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        weekendDays.push({
+          day: day,
+          dayName: dayOfWeek === 0 ? '日曜日' : '土曜日',
+          section: day <= 16 ? '前半' : '後半'
+        });
+      }
+    }
+    
+    console.log('土日の一覧:', weekendDays);
+    
+    // 食事原紙を生成
+    const result = generateMonthlyMealSheet(testYear, testMonth);
+    
+    if (result.success) {
+      console.log('✅ 食事原紙生成成功:', result.sheetName);
+      console.log('✅ 黄色マーカー設定完了');
+      console.log(`土日の日数: ${weekendDays.length}日`);
+      console.log('前半の土日:', weekendDays.filter(d => d.section === '前半').map(d => `${d.day}日(${d.dayName})`).join(', '));
+      console.log('後半の土日:', weekendDays.filter(d => d.section === '後半').map(d => `${d.day}日(${d.dayName})`).join(', '));
+      console.log('シートURL:', result.url);
+      
+      return {
+        success: true,
+        message: '土曜日・日曜日マーカー機能テスト完了',
+        testDetails: {
+          year: testYear,
+          month: testMonth,
+          weekendDays: weekendDays,
+          sheetName: result.sheetName,
+          url: result.url
+        }
+      };
+    } else {
+      console.log('❌ 食事原紙生成失敗:', result.message);
+      return {
+        success: false,
+        message: '食事原紙生成に失敗: ' + result.message
+      };
+    }
+    
+  } catch (e) {
+    console.error('testWeekendMarkerFunction Error: ' + e.message);
+    return {
+      success: false,
+      message: 'テスト実行中にエラーが発生しました: ' + e.message
+    };
+  }
+}
+
+/**
+ * テスト用：複数月の土曜日・日曜日マーカー機能を一括テスト
+ * @return {Object} 結果
+ */
+function testMultipleMonthsWeekendMarkers() {
+  try {
+    console.log('=== 複数月土日マーカーテスト開始 ===');
+    
+    const testMonths = [
+      { year: 2025, month: 8 },  // 2025年8月
+      { year: 2025, month: 9 },  // 2025年9月
+      { year: 2025, month: 10 }  // 2025年10月
+    ];
+    
+    const results = [];
+    
+    for (const testMonth of testMonths) {
+      console.log(`--- ${testMonth.year}年${testMonth.month}月テスト開始 ---`);
+      
+      const result = generateMonthlyMealSheet(testMonth.year, testMonth.month);
+      
+      if (result.success) {
+        // 土日の日数をカウント
+        const daysInMonth = new Date(testMonth.year, testMonth.month, 0).getDate();
+        let weekendCount = 0;
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(testMonth.year, testMonth.month - 1, day);
+          const dayOfWeek = date.getDay();
+          if (dayOfWeek === 0 || dayOfWeek === 6) {
+            weekendCount++;
+          }
+        }
+        
+        console.log(`✅ ${testMonth.year}年${testMonth.month}月 完了 - 土日: ${weekendCount}日`);
+        results.push({
+          year: testMonth.year,
+          month: testMonth.month,
+          success: true,
+          weekendCount: weekendCount,
+          sheetName: result.sheetName
+        });
+      } else {
+        console.log(`❌ ${testMonth.year}年${testMonth.month}月 失敗: ${result.message}`);
+        results.push({
+          year: testMonth.year,
+          month: testMonth.month,
+          success: false,
+          error: result.message
+        });
+      }
+    }
+    
+    const successCount = results.filter(r => r.success).length;
+    const totalWeekends = results.filter(r => r.success).reduce((sum, r) => sum + r.weekendCount, 0);
+    
+    console.log('=== 複数月テスト結果 ===');
+    console.log(`成功: ${successCount}/${testMonths.length}月`);
+    console.log(`総土日数: ${totalWeekends}日`);
+    
+    return {
+      success: successCount === testMonths.length,
+      message: `複数月土日マーカーテスト完了 - 成功: ${successCount}/${testMonths.length}月`,
+      results: results,
+      totalWeekends: totalWeekends
+    };
+    
+  } catch (e) {
+    console.error('testMultipleMonthsWeekendMarkers Error: ' + e.message);
+    return {
+      success: false,
+      message: 'テスト実行中にエラーが発生しました: ' + e.message
     };
   }
 }
