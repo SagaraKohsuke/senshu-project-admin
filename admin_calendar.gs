@@ -238,10 +238,10 @@ function generateMonthlyMealSheet(year, month) {
       }
     }
     
-    // 後半部分のデータクリア（行45-79、列C以降）- 40行目・44行目・80行目の関数は保護
+    // 後半部分のデータクリア（行45-79、列C以降）- 40行目・44行目・79行目・80行目の関数は保護
     for (let row = 45; row <= 79; row++) {
-      // 40行目、44行目、80行目は関数があるのでスキップ（保護）
-      if (row === 40 || row === 44 || row === 80) continue;
+      // 40行目、44行目、79行目、80行目は関数があるのでスキップ（保護）
+      if (row === 40 || row === 44 || row === 79 || row === 80) continue;
       
       for (let day = 17; day <= daysInMonth; day++) {
         const date = new Date(year, month - 1, day);
@@ -298,14 +298,14 @@ function generateMonthlyMealSheet(year, month) {
         const dayCol = 3 + (day - 17) * 2; // 朝食列
         const dayNameCol = dayCol + 1; // 夕食列
         
-        // 45-77行目の範囲で黄色マーカーを設定（40行目・44行目・80行目の関数は除外）
+        // 45-77行目の範囲で黄色マーカーを設定（40行目・44行目・79行目・80行目の関数は除外）
         for (let row = 45; row <= 77; row++) {
-          if (row === 40 || row === 44 || row === 80) continue; // 関数行は保護
+          if (row === 40 || row === 44 || row === 79 || row === 80) continue; // 関数行は保護
           newSheet.getRange(row, dayCol).setBackground('#FFFF00');
           newSheet.getRange(row, dayNameCol).setBackground('#FFFF00');
         }
         
-        console.log(`後半 ${day}日(${dayOfWeek === 0 ? '日曜日' : '土曜日'}) 列${dayCol},${dayNameCol}に黄色マーカー設定 (45-77行目, 40・44・80行目除外)`);
+        console.log(`後半 ${day}日(${dayOfWeek === 0 ? '日曜日' : '土曜日'}) 列${dayCol},${dayNameCol}に黄色マーカー設定 (45-77行目, 40・44・79・80行目除外)`);
       }
     }
     
