@@ -665,7 +665,7 @@ function testCreateAndUpdate2025September() {
 /**
  * 月次予約データ取得（内部実装）
  */
-function getMonthlyReservationCountsImpl(year, month) {
+function getMonthlyReservationCounts(year, month) {
   try {
     console.log('=== getMonthlyReservationCountsImpl開始 ===');
     console.log('パラメータ:', year, month);
@@ -929,7 +929,7 @@ function getMonthlyReservationCountsImpl(year, month) {
 /**
  * 募集停止データ取得（内部実装）
  */
-function getRecruitmentStopsImpl(year, month) {
+function getRecruitmentStops(year, month) {
   try {
     console.log('=== getRecruitmentStopsImpl開始 ===');
     
@@ -1006,7 +1006,7 @@ function getRecruitmentStopsImpl(year, month) {
 /**
  * 募集停止切り替え（内部実装）
  */
-function toggleRecruitmentStopImpl(date, mealType, year, month) {
+function toggleRecruitmentStop(date, mealType, year, month) {
   try {
     console.log('=== toggleRecruitmentStopImpl開始 ===');
     
@@ -1107,42 +1107,3 @@ function toggleRecruitmentStopImpl(date, mealType, year, month) {
   }
 }
 
-/**
- * 食事原紙URL取得（内部実装）
- */
-function getMealSheetUrlImpl() {
-  try {
-    const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
-    const ss = SpreadsheetApp.openById(mealSheetId);
-    
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    const yyyyMM = currentYear + (currentMonth < 10 ? "0" + currentMonth : currentMonth);
-    const currentMealSheetName = "食事原紙_" + yyyyMM;
-    
-    const currentMealSheet = ss.getSheetByName(currentMealSheetName);
-    
-    if (currentMealSheet) {
-      return {
-        success: true,
-        url: ss.getUrl() + "#gid=" + currentMealSheet.getSheetId(),
-        sheetName: currentMealSheetName,
-        message: "現在月の食事原紙を表示します"
-      };
-    } else {
-      return {
-        success: true,
-        url: ss.getUrl(),
-        sheetName: "未作成",
-        message: `現在月の食事原紙「${currentMealSheetName}」が見つかりません。月次生成処理を実行してください。`
-      };
-    }
-  } catch (e) {
-    console.error('getMealSheetUrlImpl Error: ' + e.message);
-    return {
-      success: false,
-      message: "食事原紙スプレッドシートのURL取得に失敗しました: " + e.message
-    };
-  }
-}

@@ -831,7 +831,7 @@ function getRecruitmentStops(year, month) {
 /**
  * 月次食事原紙シート作成（内部実装）
  */
-function createMonthlyMealSheetImpl(year, month) {
+function createMonthlyMealSheet(year, month) {
   try {
     console.log('=== createMonthlyMealSheetImpl開始 ===');
     console.log('パラメータ:', year, month);
@@ -910,7 +910,7 @@ function createMonthlyMealSheetImpl(year, month) {
     // 予約データを取得して反映
     const reservationData = getMonthlyReservationCountsImpl(year, month);
     if (reservationData.success) {
-      updateMealSheetWithDataImpl(newSheet, reservationData, year, month);
+      updateMealSheetWithData(newSheet, reservationData, year, month);
     }
     
     console.log('✅ 月次食事原紙シート作成完了:', newSheetName);
@@ -934,7 +934,7 @@ function createMonthlyMealSheetImpl(year, month) {
 /**
  * 食事原紙シートにデータを反映（内部実装）
  */
-function updateMealSheetWithDataImpl(sheet, reservationData, year, month) {
+function updateMealSheetWithData(sheet, reservationData, year, month) {
   try {
     console.log('=== updateMealSheetWithDataImpl開始 ===');
     
