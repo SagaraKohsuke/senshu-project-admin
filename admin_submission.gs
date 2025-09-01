@@ -1,15 +1,46 @@
 /**
- * 食事原紙を確認するためのスプレッドシートURLを取得する
- * @return {Object} スプレッドシートのURLを含むオブジェクト
+ * 食事原紙のスプレッドシートURLを取得する（現在月のシートを表示）
+ * @return {Object} 結果とURL
  */
 function getMealSheetUrl() {
-  const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
-  const mealSS = SpreadsheetApp.openById(mealSheetId);
-  
-  return {
-    success: true,
-    url: mealSS.getUrl()
-  };
+  try {
+    const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+    const ss = SpreadsheetApp.openById(mealSheetId);
+    
+    // 現在の年月を取得
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const yyyyMM = currentYear + (currentMonth < 10 ? "0" + currentMonth : currentMonth);
+    const currentMealSheetName = "食事原紙_" + yyyyMM;
+    
+    // 現在月のシートが存在するかチェック
+    const currentMealSheet = ss.getSheetByName(currentMealSheetName);
+    
+    if (currentMealSheet) {
+      // 現在月のシートが存在する場合、そのシートを表示
+      return {
+        success: true,
+        url: ss.getUrl() + "#gid=" + currentMealSheet.getSheetId(),
+        sheetName: currentMealSheetName,
+        message: "現在月の食事原紙を表示します"
+      };
+    } else {
+      // 現在月のシートが存在しない場合、スプレッドシートのトップページを表示
+      return {
+        success: true,
+        url: ss.getUrl(),
+        sheetName: "未作成",
+        message: "現在月の食事原紙「" + currentMealSheetName + "」が見つかりません。月次生成処理を実行してください。"
+      };
+    }
+  } catch (e) {
+    console.error('getMealSheetUrl Error: ' + e.message);
+    return {
+      success: false,
+      message: "食事原紙スプレッドシートのURL取得に失敗しました: " + e.message
+    };
+  }
 }
 
 /**
@@ -478,6 +509,310 @@ function processReservations(reservations, isDinner, userRowMap_1_16, userRowMap
       });
     }
   });
+}
+
+/**
+ * 詳細な月次予約データを取得する（食事原紙用）
+ * admin_calendar.gsのgetMonthlyReservationCountsとは異なる実装
+ * @param {number} year 年
+ * @param {number} month 月  
+ * @return {Object} 予約データ
+ */
+function getDetailedMonthlyReservationData(year, month) {
+  try {
+    console.log('=== getDetailedMonthlyReservationData開始: ' + year + '年' + month + '月 ===');
+    
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    console.log('✅ スプレッドシート接続成功');
+    
+    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const bCalendarSheetName = "b_calendar_" + yyyyMM;
+    const dCalendarSheetName = "d_calendar_" + yyyyMM;
+    const bReservationSheetName = "b_reservations_" + yyyyMM;
+    const dReservationSheetName = "d_reservations_" + yyyyMM;
+    
+    console.log('検索対象シート:', {
+      bCalendarSheetName: bCalendarSheetName,
+      dCalendarSheetName: dCalendarSheetName, 
+      bReservationSheetName: bReservationSheetName,
+      dReservationSheetName: dReservationSheetName
+    });
+  
+    // シートの存在確認
+    const bCalendarSheet = ss.getSheetByName(bCalendarSheetName);
+    const dCalendarSheet = ss.getSheetByName(dCalendarSheetName);
+    const bReservationSheet = ss.getSheetByName(bReservationSheetName);
+    const dReservationSheet = ss.getSheetByName(dReservationSheetName);
+    const usersSheet = ss.getSheetByName("users");
+    const bMenuSheet = ss.getSheetByName("b_menus");
+    const dMenuSheet = ss.getSheetByName("d_menus");
+    
+    console.log('シート存在確認:', {
+      bCalendarSheet: !!bCalendarSheet,
+      dCalendarSheet: !!dCalendarSheet,
+      bReservationSheet: !!bReservationSheet,
+      dReservationSheet: !!dReservationSheet,
+      usersSheet: !!usersSheet
+    });
+  
+    if (!bCalendarSheet || !dCalendarSheet) {
+      return {
+        success: false,
+        message: 'カレンダーシート ' + bCalendarSheetName + ' または ' + dCalendarSheetName + ' が見つかりません。'
+      };
+    }
+  
+    if (!bReservationSheet || !dReservationSheet) {
+      return {
+        success: false,
+        message: '予約シート ' + bReservationSheetName + ' または ' + dReservationSheetName + ' が見つかりません。'
+      };
+    }
+  
+    if (!usersSheet) {
+      return {
+        success: false,
+        message: "ユーザーシートが見つかりません。"
+      };
+    }
+  
+  // データの取得
+  const bCalendarData = bCalendarSheet.getDataRange().getValues();
+  const dCalendarData = dCalendarSheet.getDataRange().getValues();
+  const bReservationData = bReservationSheet.getDataRange().getValues();
+  const dReservationData = dReservationSheet.getDataRange().getValues();
+  const usersData = usersSheet.getDataRange().getValues();
+  
+  // メニューデータの取得（存在する場合）
+  let bMenuData = [];
+  let dMenuData = [];
+  
+  if (bMenuSheet) {
+    bMenuData = bMenuSheet.getDataRange().getValues();
+  }
+  
+  if (dMenuSheet) {
+    dMenuData = dMenuSheet.getDataRange().getValues();
+  }
+  
+  // ヘッダー行の列インデックスを取得
+  const bCalendarHeaders = bCalendarData[0];
+  const dCalendarHeaders = dCalendarData[0];
+  const bReservationHeaders = bReservationData[0];
+  const dReservationHeaders = dReservationData[0];
+  const usersHeaders = usersData[0];
+  
+  const bCalendarIdIndex = bCalendarHeaders.indexOf("b_calendar_id");
+  const bCalendarDateIndex = bCalendarHeaders.indexOf("date");
+  const bCalendarMenuIdIndex = bCalendarHeaders.indexOf("b_menu_id");
+  
+  const dCalendarIdIndex = dCalendarHeaders.indexOf("d_calendar_id");
+  const dCalendarDateIndex = dCalendarHeaders.indexOf("date");
+  const dCalendarMenuIdIndex = dCalendarHeaders.indexOf("d_menu_id");
+  
+  const bReservationCalendarIdIndex = bReservationHeaders.indexOf("b_calendar_id");
+  const bReservationUserIdIndex = bReservationHeaders.indexOf("user_id");
+  const bReservationStatusIndex = bReservationHeaders.indexOf("is_reserved");
+  
+  const dReservationCalendarIdIndex = dReservationHeaders.indexOf("d_calendar_id");
+  const dReservationUserIdIndex = dReservationHeaders.indexOf("user_id");
+  const dReservationStatusIndex = dReservationHeaders.indexOf("is_reserved");
+  
+  const userIdIndex = usersHeaders.indexOf("user_id");
+  const userNameIndex = usersHeaders.indexOf("name");
+  
+  // 朝食メニューマップの作成（カロリー情報も含む）
+  const bMenuMap = {};
+  if (bMenuData.length > 1) {
+    const bMenuIdIndex = bMenuData[0].indexOf("b_menu_id");
+    const bMenuNameIndex = bMenuData[0].indexOf("breakfast_menu");
+    const bCalorieIndex = bMenuData[0].indexOf("calorie");
+    
+    if (bMenuIdIndex !== -1 && bMenuNameIndex !== -1) {
+      for (let i = 1; i < bMenuData.length; i++) {
+        const menuId = bMenuData[i][bMenuIdIndex];
+        const menuName = bMenuData[i][bMenuNameIndex];
+        const calorie = bCalorieIndex !== -1 ? bMenuData[i][bCalorieIndex] : 0;
+        bMenuMap[menuId] = {
+          name: menuName,
+          calorie: calorie || 0
+        };
+      }
+    }
+  }
+  
+  // 夕食メニューマップの作成（カロリー情報も含む）
+  const dMenuMap = {};
+  if (dMenuData.length > 1) {
+    const dMenuIdIndex = dMenuData[0].indexOf("d_menu_id");
+    const dMenuNameIndex = dMenuData[0].indexOf("dinner_menu");
+    const dCalorieIndex = dMenuData[0].indexOf("calorie");
+    
+    if (dMenuIdIndex !== -1 && dMenuNameIndex !== -1) {
+      for (let i = 1; i < dMenuData.length; i++) {
+        const menuId = dMenuData[i][dMenuIdIndex];
+        const menuName = dMenuData[i][dMenuNameIndex];
+        const calorie = dCalorieIndex !== -1 ? dMenuData[i][dCalorieIndex] : 0;
+        dMenuMap[menuId] = {
+          name: menuName,
+          calorie: calorie || 0
+        };
+      }
+    }
+  }
+  
+  // ユーザーIDからユーザー名を取得するためのマップを作成
+  const userMap = {};
+  for (let i = 1; i < usersData.length; i++) {
+    const userId = usersData[i][userIdIndex];
+    const userName = usersData[i][userNameIndex];
+    userMap[userId] = userName;
+  }
+  
+  // 朝食カレンダーの日付マッピング
+  const bCalendarDateMap = {};
+  for (let i = 1; i < bCalendarData.length; i++) {
+    const calendarId = bCalendarData[i][bCalendarIdIndex];
+    const date = bCalendarData[i][bCalendarDateIndex];
+    const menuId = bCalendarData[i][bCalendarMenuIdIndex];
+    
+    if (date instanceof Date) {
+      const dateStr = formatDate(date);
+      bCalendarDateMap[calendarId] = {
+        date: dateStr,
+        menuId: menuId,
+        menuName: bMenuMap[menuId] ? bMenuMap[menuId].name : "未設定",
+        calorie: bMenuMap[menuId] ? bMenuMap[menuId].calorie : 0
+      };
+    }
+  }
+  
+  // 夕食カレンダーの日付マッピング
+  const dCalendarDateMap = {};
+  for (let i = 1; i < dCalendarData.length; i++) {
+    const calendarId = dCalendarData[i][dCalendarIdIndex];
+    const date = dCalendarData[i][dCalendarDateIndex];
+    const menuId = dCalendarData[i][dCalendarMenuIdIndex];
+    
+    if (date instanceof Date) {
+      const dateStr = formatDate(date);
+      dCalendarDateMap[calendarId] = {
+        date: dateStr,
+        menuId: menuId,
+        menuName: dMenuMap[menuId] ? dMenuMap[menuId].name : "未設定",
+        calorie: dMenuMap[menuId] ? dMenuMap[menuId].calorie : 0
+      };
+    }
+  }
+  
+  // 朝食の予約数と予約者のカウント
+  const bReservationCounts = {};
+  const bReservationUsers = {};
+  
+  for (let i = 1; i < bReservationData.length; i++) {
+    const row = bReservationData[i];
+    const calendarId = row[bReservationCalendarIdIndex];
+    const userId = row[bReservationUserIdIndex];
+    const isReserved = row[bReservationStatusIndex];
+    
+    if (isReserved) {
+      if (!bReservationCounts[calendarId]) {
+        bReservationCounts[calendarId] = 0;
+        bReservationUsers[calendarId] = [];
+      }
+      
+      bReservationCounts[calendarId]++;
+      bReservationUsers[calendarId].push({
+        userId: userId,
+        userName: userMap[userId] || "Unknown"
+      });
+    }
+  }
+  
+  // 夕食の予約数と予約者のカウント
+  const dReservationCounts = {};
+  const dReservationUsers = {};
+  
+  for (let i = 1; i < dReservationData.length; i++) {
+    const row = dReservationData[i];
+    const calendarId = row[dReservationCalendarIdIndex];
+    const userId = row[dReservationUserIdIndex];
+    const isReserved = row[dReservationStatusIndex];
+    
+    if (isReserved) {
+      if (!dReservationCounts[calendarId]) {
+        dReservationCounts[calendarId] = 0;
+        dReservationUsers[calendarId] = [];
+      }
+      
+      dReservationCounts[calendarId]++;
+      dReservationUsers[calendarId].push({
+        userId: userId,
+        userName: userMap[userId] || "Unknown"
+      });
+    }
+  }
+  
+  // 結果の形成
+  const breakfastReservations = [];
+  const dinnerReservations = [];
+  
+  // 朝食の集計
+  for (const calendarId in bCalendarDateMap) {
+    const dateInfo = bCalendarDateMap[calendarId];
+    breakfastReservations.push({
+      calendarId: calendarId,
+      date: dateInfo.date,
+      menuId: dateInfo.menuId,
+      menuName: dateInfo.menuName,
+      calorie: dateInfo.calorie,
+      count: bReservationCounts[calendarId] || 0,
+      users: bReservationUsers[calendarId] || []
+    });
+  }
+  
+  // 夕食の集計
+  for (const calendarId in dCalendarDateMap) {
+    const dateInfo = dCalendarDateMap[calendarId];
+    dinnerReservations.push({
+      calendarId: calendarId,
+      date: dateInfo.date,
+      menuId: dateInfo.menuId,
+      menuName: dateInfo.menuName,
+      calorie: dateInfo.calorie,
+      count: dReservationCounts[calendarId] || 0,
+      users: dReservationUsers[calendarId] || []
+    });
+  }
+  
+  // 日付でソート
+  breakfastReservations.sort((a, b) => a.date.localeCompare(b.date));
+  dinnerReservations.sort((a, b) => a.date.localeCompare(b.date));
+  
+  console.log('✅ データ処理完了:', {
+    breakfastCount: breakfastReservations.length,
+    dinnerCount: dinnerReservations.length
+  });
+  
+  return {
+    success: true,
+    year: year,
+    month: month,
+    breakfast: breakfastReservations,
+    dinner: dinnerReservations
+  };
+  
+  } catch (error) {
+    console.error('❌ getDetailedMonthlyReservationData エラー:', error);
+    console.error('エラースタック:', error.stack);
+    return {
+      success: false,
+      message: '処理中にエラーが発生しました: ' + error.message,
+      breakfast: [],
+      dinner: []
+    };
+  }
 }
 
 // ==========================================
