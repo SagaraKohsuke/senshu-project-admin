@@ -657,3 +657,492 @@ function testCreateAndUpdate2025September() {
   
   console.log('=== 2025年9月のテスト完了 ===');
 }
+
+// ==========================================
+// 予約データ取得機能
+// ==========================================
+
+/**
+ * 月次予約データ取得（内部実装）
+ */
+function getMonthlyReservationCountsImpl(year, month) {
+  try {
+    console.log('=== getMonthlyReservationCountsImpl開始 ===');
+    console.log('パラメータ:', year, month);
+    
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
+    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const bCalendarSheetName = "b_calendar_" + yyyyMM;
+    const dCalendarSheetName = "d_calendar_" + yyyyMM;
+    const bReservationSheetName = "b_reservations_" + yyyyMM;
+    const dReservationSheetName = "d_reservations_" + yyyyMM;
+    
+    // シートの存在確認
+    const bCalendarSheet = ss.getSheetByName(bCalendarSheetName);
+    const dCalendarSheet = ss.getSheetByName(dCalendarSheetName);
+    const bReservationSheet = ss.getSheetByName(bReservationSheetName);
+    const dReservationSheet = ss.getSheetByName(dReservationSheetName);
+    const usersSheet = ss.getSheetByName("users");
+    const bMenuSheet = ss.getSheetByName("b_menus");
+    const dMenuSheet = ss.getSheetByName("d_menus");
+    
+    if (!bCalendarSheet || !dCalendarSheet || !bReservationSheet || !dReservationSheet || !usersSheet) {
+      return {
+        success: false,
+        message: '必要なシートが見つかりません。'
+      };
+    }
+  
+    // データの取得
+    const bCalendarData = bCalendarSheet.getDataRange().getValues();
+    const dCalendarData = dCalendarSheet.getDataRange().getValues();
+    const bReservationData = bReservationSheet.getDataRange().getValues();
+    const dReservationData = dReservationSheet.getDataRange().getValues();
+    const usersData = usersSheet.getDataRange().getValues();
+    
+    // メニューデータの取得
+    let bMenuData = [];
+    let dMenuData = [];
+    
+    if (bMenuSheet) {
+      bMenuData = bMenuSheet.getDataRange().getValues();
+    }
+    if (dMenuSheet) {
+      dMenuData = dMenuSheet.getDataRange().getValues();
+    }
+    
+    // メニューマップの作成
+    const bMenuMap = {};
+    if (bMenuData.length > 1) {
+      const bMenuIdIndex = bMenuData[0].indexOf("b_menu_id");
+      const bMenuNameIndex = bMenuData[0].indexOf("breakfast_menu");
+      const bCalorieIndex = bMenuData[0].indexOf("calorie");
+      
+      if (bMenuIdIndex !== -1 && bMenuNameIndex !== -1) {
+        for (let i = 1; i < bMenuData.length; i++) {
+          const menuId = bMenuData[i][bMenuIdIndex];
+          const menuName = bMenuData[i][bMenuNameIndex];
+          const calorie = bCalorieIndex !== -1 ? bMenuData[i][bCalorieIndex] : 0;
+          bMenuMap[menuId] = {
+            name: menuName,
+            calorie: calorie || 0
+          };
+        }
+      }
+    }
+    
+    const dMenuMap = {};
+    if (dMenuData.length > 1) {
+      const dMenuIdIndex = dMenuData[0].indexOf("d_menu_id");
+      const dMenuNameIndex = dMenuData[0].indexOf("dinner_menu");
+      const dCalorieIndex = dMenuData[0].indexOf("calorie");
+      
+      if (dMenuIdIndex !== -1 && dMenuNameIndex !== -1) {
+        for (let i = 1; i < dMenuData.length; i++) {
+          const menuId = dMenuData[i][dMenuIdIndex];
+          const menuName = dMenuData[i][dMenuNameIndex];
+          const calorie = dCalorieIndex !== -1 ? dMenuData[i][dCalorieIndex] : 0;
+          dMenuMap[menuId] = {
+            name: menuName,
+            calorie: calorie || 0
+          };
+        }
+      }
+    }
+    
+    // ユーザーマップの作成
+    const userMap = {};
+    const userIdIndex = usersData[0].indexOf("user_id");
+    const userNameIndex = usersData[0].indexOf("name");
+    for (let i = 1; i < usersData.length; i++) {
+      const userId = usersData[i][userIdIndex];
+      const userName = usersData[i][userNameIndex];
+      userMap[userId] = userName;
+    }
+    
+    // カレンダーデータの処理
+    const bCalendarDateMap = {};
+    const bCalendarHeaders = bCalendarData[0];
+    const bCalendarIdIndex = bCalendarHeaders.indexOf("b_calendar_id");
+    const bCalendarDateIndex = bCalendarHeaders.indexOf("date");
+    const bCalendarMenuIdIndex = bCalendarHeaders.indexOf("b_menu_id");
+    
+    for (let i = 1; i < bCalendarData.length; i++) {
+      const calendarId = bCalendarData[i][bCalendarIdIndex];
+      const date = bCalendarData[i][bCalendarDateIndex];
+      const menuId = bCalendarData[i][bCalendarMenuIdIndex];
+      
+      if (date instanceof Date) {
+        const dateStr = date.getFullYear() + '-' + 
+                       (date.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                       date.getDate().toString().padStart(2, '0');
+        bCalendarDateMap[calendarId] = {
+          date: dateStr,
+          menuId: menuId,
+          menuName: bMenuMap[menuId] ? bMenuMap[menuId].name : "未設定",
+          calorie: bMenuMap[menuId] ? bMenuMap[menuId].calorie : 0
+        };
+      }
+    }
+    
+    const dCalendarDateMap = {};
+    const dCalendarHeaders = dCalendarData[0];
+    const dCalendarIdIndex = dCalendarHeaders.indexOf("d_calendar_id");
+    const dCalendarDateIndex = dCalendarHeaders.indexOf("date");
+    const dCalendarMenuIdIndex = dCalendarHeaders.indexOf("d_menu_id");
+    
+    for (let i = 1; i < dCalendarData.length; i++) {
+      const calendarId = dCalendarData[i][dCalendarIdIndex];
+      const date = dCalendarData[i][dCalendarDateIndex];
+      const menuId = dCalendarData[i][dCalendarMenuIdIndex];
+      
+      if (date instanceof Date) {
+        const dateStr = date.getFullYear() + '-' + 
+                       (date.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                       date.getDate().toString().padStart(2, '0');
+        dCalendarDateMap[calendarId] = {
+          date: dateStr,
+          menuId: menuId,
+          menuName: dMenuMap[menuId] ? dMenuMap[menuId].name : "未設定",
+          calorie: dMenuMap[menuId] ? dMenuMap[menuId].calorie : 0
+        };
+      }
+    }
+    
+    // 予約データの処理
+    const bReservationCounts = {};
+    const bReservationUsers = {};
+    const bReservationHeaders = bReservationData[0];
+    const bReservationCalendarIdIndex = bReservationHeaders.indexOf("b_calendar_id");
+    const bReservationUserIdIndex = bReservationHeaders.indexOf("user_id");
+    const bReservationStatusIndex = bReservationHeaders.indexOf("is_reserved");
+    
+    for (let i = 1; i < bReservationData.length; i++) {
+      const row = bReservationData[i];
+      const calendarId = row[bReservationCalendarIdIndex];
+      const userId = row[bReservationUserIdIndex];
+      const isReserved = row[bReservationStatusIndex];
+      
+      if (isReserved) {
+        if (!bReservationCounts[calendarId]) {
+          bReservationCounts[calendarId] = 0;
+          bReservationUsers[calendarId] = [];
+        }
+        
+        bReservationCounts[calendarId]++;
+        bReservationUsers[calendarId].push({
+          userId: userId,
+          userName: userMap[userId] || "Unknown"
+        });
+      }
+    }
+    
+    const dReservationCounts = {};
+    const dReservationUsers = {};
+    const dReservationHeaders = dReservationData[0];
+    const dReservationCalendarIdIndex = dReservationHeaders.indexOf("d_calendar_id");
+    const dReservationUserIdIndex = dReservationHeaders.indexOf("user_id");
+    const dReservationStatusIndex = dReservationHeaders.indexOf("is_reserved");
+    
+    for (let i = 1; i < dReservationData.length; i++) {
+      const row = dReservationData[i];
+      const calendarId = row[dReservationCalendarIdIndex];
+      const userId = row[dReservationUserIdIndex];
+      const isReserved = row[dReservationStatusIndex];
+      
+      if (isReserved) {
+        if (!dReservationCounts[calendarId]) {
+          dReservationCounts[calendarId] = 0;
+          dReservationUsers[calendarId] = [];
+        }
+        
+        dReservationCounts[calendarId]++;
+        dReservationUsers[calendarId].push({
+          userId: userId,
+          userName: userMap[userId] || "Unknown"
+        });
+      }
+    }
+    
+    // 結果の形成
+    const breakfastReservations = [];
+    const dinnerReservations = [];
+    
+    // 朝食の集計
+    for (const calendarId in bCalendarDateMap) {
+      const dateInfo = bCalendarDateMap[calendarId];
+      breakfastReservations.push({
+        calendarId: calendarId,
+        date: dateInfo.date,
+        menuId: dateInfo.menuId,
+        menuName: dateInfo.menuName,
+        calorie: dateInfo.calorie,
+        count: bReservationCounts[calendarId] || 0,
+        users: bReservationUsers[calendarId] || []
+      });
+    }
+    
+    // 夕食の集計
+    for (const calendarId in dCalendarDateMap) {
+      const dateInfo = dCalendarDateMap[calendarId];
+      dinnerReservations.push({
+        calendarId: calendarId,
+        date: dateInfo.date,
+        menuId: dateInfo.menuId,
+        menuName: dateInfo.menuName,
+        calorie: dateInfo.calorie,
+        count: dReservationCounts[calendarId] || 0,
+        users: dReservationUsers[calendarId] || []
+      });
+    }
+    
+    // 日付でソート
+    breakfastReservations.sort((a, b) => a.date.localeCompare(b.date));
+    dinnerReservations.sort((a, b) => a.date.localeCompare(b.date));
+    
+    console.log('✅ データ処理完了:', {
+      breakfastCount: breakfastReservations.length,
+      dinnerCount: dinnerReservations.length
+    });
+    
+    return {
+      success: true,
+      year: year,
+      month: month,
+      breakfast: breakfastReservations,
+      dinner: dinnerReservations
+    };
+    
+  } catch (error) {
+    console.error('❌ getMonthlyReservationCountsImpl エラー:', error);
+    return {
+      success: false,
+      message: '処理中にエラーが発生しました: ' + error.message,
+      breakfast: [],
+      dinner: []
+    };
+  }
+}
+
+/**
+ * 募集停止データ取得（内部実装）
+ */
+function getRecruitmentStopsImpl(year, month) {
+  try {
+    console.log('=== getRecruitmentStopsImpl開始 ===');
+    
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
+    const recruitmentStopsSheet = ss.getSheetByName("recruitment_stops");
+    if (!recruitmentStopsSheet) {
+      console.log('recruitment_stopsシートが見つかりません。空のデータを返します。');
+      return {
+        success: true,
+        stops: {}
+      };
+    }
+    
+    const data = recruitmentStopsSheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return {
+        success: true,
+        stops: {}
+      };
+    }
+    
+    const headers = data[0];
+    const dateIndex = headers.indexOf("date");
+    const breakfastIndex = headers.indexOf("is_breakfast_stopped");
+    const dinnerIndex = headers.indexOf("is_dinner_stopped");
+    const isActiveIndex = headers.indexOf("is_active");
+    
+    const stops = {};
+    const targetYearMonth = year + '-' + (month < 10 ? '0' + month : month);
+    
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const date = row[dateIndex];
+      const isBreakfastStopped = row[breakfastIndex];
+      const isDinnerStopped = row[dinnerIndex];
+      const isActive = row[isActiveIndex];
+      
+      if (!isActive) continue;
+      
+      let dateStr;
+      if (date instanceof Date) {
+        dateStr = date.getFullYear() + '-' + 
+                 (date.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                 date.getDate().toString().padStart(2, '0');
+      } else {
+        dateStr = date.toString();
+      }
+      
+      if (dateStr.startsWith(targetYearMonth)) {
+        stops[dateStr] = {
+          breakfast: !!isBreakfastStopped,
+          dinner: !!isDinnerStopped
+        };
+      }
+    }
+    
+    return {
+      success: true,
+      stops: stops
+    };
+    
+  } catch (error) {
+    console.error('❌ getRecruitmentStopsImpl エラー:', error);
+    return {
+      success: false,
+      message: '募集停止データの取得に失敗しました: ' + error.message,
+      stops: {}
+    };
+  }
+}
+
+/**
+ * 募集停止切り替え（内部実装）
+ */
+function toggleRecruitmentStopImpl(date, mealType, year, month) {
+  try {
+    console.log('=== toggleRecruitmentStopImpl開始 ===');
+    
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
+    let recruitmentStopsSheet = ss.getSheetByName("recruitment_stops");
+    if (!recruitmentStopsSheet) {
+      recruitmentStopsSheet = ss.insertSheet("recruitment_stops");
+      recruitmentStopsSheet.appendRow([
+        "date", "is_breakfast_stopped", "is_dinner_stopped", "is_active", "created_at", "updated_at"
+      ]);
+    }
+    
+    const data = recruitmentStopsSheet.getDataRange().getValues();
+    const headers = data[0];
+    const dateIndex = headers.indexOf("date");
+    const breakfastIndex = headers.indexOf("is_breakfast_stopped");
+    const dinnerIndex = headers.indexOf("is_dinner_stopped");
+    const isActiveIndex = headers.indexOf("is_active");
+    const updatedAtIndex = headers.indexOf("updated_at");
+    
+    // 既存レコードを検索
+    let existingRowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      const rowDate = data[i][dateIndex];
+      let rowDateStr;
+      
+      if (rowDate instanceof Date) {
+        rowDateStr = rowDate.getFullYear() + '-' + 
+                    (rowDate.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                    rowDate.getDate().toString().padStart(2, '0');
+      } else {
+        rowDateStr = rowDate.toString();
+      }
+      
+      if (rowDateStr === date && data[i][isActiveIndex]) {
+        existingRowIndex = i;
+        break;
+      }
+    }
+    
+    const now = new Date();
+    let newBreakfastStopped = false;
+    let newDinnerStopped = false;
+    let message = '';
+    
+    if (existingRowIndex !== -1) {
+      const currentBreakfastStopped = data[existingRowIndex][breakfastIndex];
+      const currentDinnerStopped = data[existingRowIndex][dinnerIndex];
+      
+      if (mealType === 'breakfast') {
+        newBreakfastStopped = !currentBreakfastStopped;
+        newDinnerStopped = currentDinnerStopped;
+        message = newBreakfastStopped ? '朝食の募集を停止しました' : '朝食の募集停止を解除しました';
+      } else {
+        newBreakfastStopped = currentBreakfastStopped;
+        newDinnerStopped = !currentDinnerStopped;
+        message = newDinnerStopped ? '夕食の募集を停止しました' : '夕食の募集停止を解除しました';
+      }
+      
+      recruitmentStopsSheet.getRange(existingRowIndex + 1, breakfastIndex + 1).setValue(newBreakfastStopped);
+      recruitmentStopsSheet.getRange(existingRowIndex + 1, dinnerIndex + 1).setValue(newDinnerStopped);
+      recruitmentStopsSheet.getRange(existingRowIndex + 1, updatedAtIndex + 1).setValue(now);
+      
+    } else {
+      if (mealType === 'breakfast') {
+        newBreakfastStopped = true;
+        newDinnerStopped = false;
+        message = '朝食の募集を停止しました';
+      } else {
+        newBreakfastStopped = false;
+        newDinnerStopped = true;
+        message = '夕食の募集を停止しました';
+      }
+      
+      recruitmentStopsSheet.appendRow([
+        date,
+        newBreakfastStopped,
+        newDinnerStopped,
+        true,
+        now,
+        now
+      ]);
+    }
+    
+    return {
+      success: true,
+      message: message
+    };
+    
+  } catch (error) {
+    console.error('❌ toggleRecruitmentStopImpl エラー:', error);
+    return {
+      success: false,
+      message: '募集停止の切り替え中にエラーが発生しました: ' + error.message
+    };
+  }
+}
+
+/**
+ * 食事原紙URL取得（内部実装）
+ */
+function getMealSheetUrlImpl() {
+  try {
+    const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+    const ss = SpreadsheetApp.openById(mealSheetId);
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const yyyyMM = currentYear + (currentMonth < 10 ? "0" + currentMonth : currentMonth);
+    const currentMealSheetName = "食事原紙_" + yyyyMM;
+    
+    const currentMealSheet = ss.getSheetByName(currentMealSheetName);
+    
+    if (currentMealSheet) {
+      return {
+        success: true,
+        url: ss.getUrl() + "#gid=" + currentMealSheet.getSheetId(),
+        sheetName: currentMealSheetName,
+        message: "現在月の食事原紙を表示します"
+      };
+    } else {
+      return {
+        success: true,
+        url: ss.getUrl(),
+        sheetName: "未作成",
+        message: `現在月の食事原紙「${currentMealSheetName}」が見つかりません。月次生成処理を実行してください。`
+      };
+    }
+  } catch (e) {
+    console.error('getMealSheetUrlImpl Error: ' + e.message);
+    return {
+      success: false,
+      message: "食事原紙スプレッドシートのURL取得に失敗しました: " + e.message
+    };
+  }
+}

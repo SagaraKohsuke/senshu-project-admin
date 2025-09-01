@@ -824,6 +824,179 @@ function getRecruitmentStops(year, month) {
   }
 }
 
+// ==========================================
+// 食事原紙作成機能
+// ==========================================
+
+/**
+ * 月次食事原紙シート作成（内部実装）
+ */
+function createMonthlyMealSheetImpl(year, month) {
+  try {
+    console.log('=== createMonthlyMealSheetImpl開始 ===');
+    console.log('パラメータ:', year, month);
+    
+    const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+    const mealSS = SpreadsheetApp.openById(mealSheetId);
+    
+    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const newSheetName = "食事原紙_" + yyyyMM;
+    
+    // 既存シートの確認
+    const existingSheet = mealSS.getSheetByName(newSheetName);
+    if (existingSheet) {
+      console.log('既存のシートが見つかりました:', newSheetName);
+      return {
+        success: true,
+        message: `シート「${newSheetName}」は既に存在します`,
+        sheetName: newSheetName
+      };
+    }
+    
+    // テンプレートシートを取得
+    const templateSheet = mealSS.getSheetByName("Template");
+    if (!templateSheet) {
+      return {
+        success: false,
+        message: 'テンプレートシートが見つかりません'
+      };
+    }
+    
+    // テンプレートをコピーして新しいシートを作成
+    const newSheet = templateSheet.copyTo(mealSS);
+    newSheet.setName(newSheetName);
+    console.log('✅ テンプレートをコピー完了:', newSheetName);
+    
+    // 日付データを生成
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const dates = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      dates.push(day);
+    }
+    
+    // 日付ヘッダーを設定（2行目に日付を配置）
+    if (daysInMonth > 0) {
+      const dateRange = newSheet.getRange(2, 2, 1, daysInMonth);
+      dateRange.setValues([dates]);
+    }
+    
+    // 週末マーカーの適用（土日列に黄色背景 #FFFF00）
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = date.getDay();
+      const col = day + 1; // 2列目から開始
+      
+      // 土曜日(6)または日曜日(0)の場合
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        console.log(`週末マーカー適用: ${year}/${month}/${day} (${dayOfWeek === 0 ? '日' : '土'}曜日)`);
+        
+        // 前半セクション (5-37行) - 数式保護行40をスキップ
+        const frontRange = newSheet.getRange(5, col, 33, 1);
+        frontRange.setBackground('#FFFF00');
+        
+        // 後半セクション (45-77行) - 数式保護行44, 79, 80をスキップ
+        const backRange = newSheet.getRange(45, col, 33, 1);
+        backRange.setBackground('#FFFF00');
+      }
+    }
+    
+    // 構造的配置の実装
+    // 42行目に後半セクションヘッダー「後半」を配置
+    newSheet.getRange(42, 1).setValue("後半");
+    
+    // 数式保護行の確認（40, 44, 79, 80行目）
+    console.log('✅ 数式保護行をスキップ: 40, 44, 79, 80行目');
+    
+    // 予約データを取得して反映
+    const reservationData = getMonthlyReservationCountsImpl(year, month);
+    if (reservationData.success) {
+      updateMealSheetWithDataImpl(newSheet, reservationData, year, month);
+    }
+    
+    console.log('✅ 月次食事原紙シート作成完了:', newSheetName);
+    
+    return {
+      success: true,
+      message: `食事原紙「${newSheetName}」を作成しました`,
+      sheetName: newSheetName,
+      url: mealSS.getUrl() + "#gid=" + newSheet.getSheetId()
+    };
+    
+  } catch (error) {
+    console.error('❌ createMonthlyMealSheetImpl エラー:', error);
+    return {
+      success: false,
+      message: 'シート作成中にエラーが発生しました: ' + error.message
+    };
+  }
+}
+
+/**
+ * 食事原紙シートにデータを反映（内部実装）
+ */
+function updateMealSheetWithDataImpl(sheet, reservationData, year, month) {
+  try {
+    console.log('=== updateMealSheetWithDataImpl開始 ===');
+    
+    const daysInMonth = new Date(year, month, 0).getDate();
+    
+    // 朝食データの反映
+    for (const breakfast of reservationData.breakfast) {
+      const date = new Date(breakfast.date);
+      const day = date.getDate();
+      const col = day + 1; // 2列目から開始
+      
+      if (day >= 1 && day <= daysInMonth) {
+        // 前半セクション（5-37行）に朝食データを配置
+        const rowIndex = 5 + ((day - 1) % 31); // 31日サイクル（数式保護行を考慮）
+        if (rowIndex <= 37 && rowIndex !== 40) { // 数式保護行40をスキップ
+          sheet.getRange(rowIndex, col).setValue(breakfast.count);
+          
+          // ユーザー名リストを隣接セルに配置
+          if (breakfast.users.length > 0) {
+            const userNames = breakfast.users.map(user => user.userName).join(', ');
+            // メニュー情報も追加
+            const menuInfo = breakfast.menuName !== '未設定' ? 
+              `${breakfast.menuName}(${breakfast.calorie}kcal)` : '';
+            const cellValue = menuInfo ? `${userNames}\n${menuInfo}` : userNames;
+            sheet.getRange(rowIndex + 1, col).setValue(cellValue);
+          }
+        }
+      }
+    }
+    
+    // 夕食データの反映
+    for (const dinner of reservationData.dinner) {
+      const date = new Date(dinner.date);
+      const day = date.getDate();
+      const col = day + 1; // 2列目から開始
+      
+      if (day >= 1 && day <= daysInMonth) {
+        // 後半セクション（45-77行）に夕食データを配置
+        const rowIndex = 45 + ((day - 1) % 31); // 31日サイクル（数式保護行を考慮）
+        if (rowIndex <= 77 && rowIndex !== 79 && rowIndex !== 80) { // 数式保護行79, 80をスキップ
+          sheet.getRange(rowIndex, col).setValue(dinner.count);
+          
+          // ユーザー名リストを隣接セルに配置
+          if (dinner.users.length > 0) {
+            const userNames = dinner.users.map(user => user.userName).join(', ');
+            // メニュー情報も追加
+            const menuInfo = dinner.menuName !== '未設定' ? 
+              `${dinner.menuName}(${dinner.calorie}kcal)` : '';
+            const cellValue = menuInfo ? `${userNames}\n${menuInfo}` : userNames;
+            sheet.getRange(rowIndex + 1, col).setValue(cellValue);
+          }
+        }
+      }
+    }
+    
+    console.log('✅ 食事原紙データ反映完了');
+    
+  } catch (error) {
+    console.error('❌ updateMealSheetWithDataImpl エラー:', error);
+  }
+}
+
 function getMonthlyReservationCounts(year, month) {
   try {
     console.log('=== getMonthlyReservationCounts開始: ' + year + '年' + month + '月 ===');
