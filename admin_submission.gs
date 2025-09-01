@@ -159,7 +159,7 @@ function updateDailyMealSheet() {
     updateUserNamesInSheet(targetSheet, userIdToNameMap);
 
     // 月次の予約データを取得
-    const reservationData = getMonthlyReservationCounts(year, month);
+    const reservationData = getDetailedMonthlyReservationData(year, month);
     if (!reservationData.success) {
       console.error("予約データの取得に失敗しました:", reservationData.message);
       return;
@@ -678,7 +678,9 @@ function getDetailedMonthlyReservationData(year, month) {
     const menuId = bCalendarData[i][bCalendarMenuIdIndex];
     
     if (date instanceof Date) {
-      const dateStr = formatDate(date);
+      const dateStr = date.getFullYear() + '-' + 
+                     (date.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                     date.getDate().toString().padStart(2, '0');
       bCalendarDateMap[calendarId] = {
         date: dateStr,
         menuId: menuId,
@@ -696,7 +698,9 @@ function getDetailedMonthlyReservationData(year, month) {
     const menuId = dCalendarData[i][dCalendarMenuIdIndex];
     
     if (date instanceof Date) {
-      const dateStr = formatDate(date);
+      const dateStr = date.getFullYear() + '-' + 
+                     (date.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                     date.getDate().toString().padStart(2, '0');
       dCalendarDateMap[calendarId] = {
         date: dateStr,
         menuId: menuId,
@@ -981,7 +985,7 @@ function testUpdateSpecificMonthSheet(testYear, testMonth) {
     console.log('✅ ユーザー名更新完了');
 
     // 月次の予約データを取得
-    const reservationData = getMonthlyReservationCounts(testYear, testMonth);
+    const reservationData = getDetailedMonthlyReservationData(testYear, testMonth);
     if (!reservationData.success) {
       console.error("予約データの取得に失敗しました:", reservationData.message);
       return;
