@@ -48,51 +48,6 @@ function debugTest(){
 }
 
 /**
- * 食事原紙のスプレッドシートURLを取得する（現在月のシートを表示）
- * @return {Object} 結果とURL
- */
-function getMealSheetUrl() {
-  try {
-    const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
-    const ss = SpreadsheetApp.openById(mealSheetId);
-    
-    // 現在の年月を取得
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    const yyyyMM = currentYear + (currentMonth < 10 ? "0" + currentMonth : currentMonth);
-    const currentMealSheetName = "食事原紙_" + yyyyMM;
-    
-    // 現在月のシートが存在するかチェック
-    const currentMealSheet = ss.getSheetByName(currentMealSheetName);
-    
-    if (currentMealSheet) {
-      // 現在月のシートが存在する場合、そのシートを表示
-      return {
-        success: true,
-        url: ss.getUrl() + "#gid=" + currentMealSheet.getSheetId(),
-        sheetName: currentMealSheetName,
-        message: "現在月の食事原紙を表示します"
-      };
-    } else {
-      // 現在月のシートが存在しない場合、スプレッドシートのトップページを表示
-      return {
-        success: true,
-        url: ss.getUrl(),
-        sheetName: "未作成",
-        message: "現在月の食事原紙「" + currentMealSheetName + "」が見つかりません。月次生成処理を実行してください。"
-      };
-    }
-  } catch (e) {
-    console.error('getMealSheetUrl Error: ' + e.message);
-    return {
-      success: false,
-      message: "食事原紙スプレッドシートのURL取得に失敗しました: " + e.message
-    };
-  }
-}
-
-/**
  * 毎月01日00:00に実行される食事原紙生成処理
  * 指定されたテンプレートスプレッドシートに月次シートを作成
  * @return {Object} 結果
