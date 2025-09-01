@@ -434,3 +434,93 @@ function parseUserIds(userIdsStr) {
     userId: id.trim()
   }));
 }
+
+/**
+ * 募集停止状況を取得する（is_activeフィールドを使用）
+ * @param {number} year 年
+ * @param {number} month 月
+ * @return {Object} 募集停止情報
+ */
+function getRecruitmentStops(year, month) {
+  try {
+    const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
+    const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
+    const bCalendarSheetName = `b_calendar_${yyyyMM}`;
+    const dCalendarSheetName = `d_calendar_${yyyyMM}`;
+    
+    const bCalendarSheet = ss.getSheetByName(bCalendarSheetName);
+    const dCalendarSheet = ss.getSheetByName(dCalendarSheetName);
+    
+    const stops = {};
+    
+    // 朝食カレンダーの処理
+    if (bCalendarSheet) {
+      const bCalendarData = bCalendarSheet.getDataRange().getValues();
+      if (bCalendarData.length > 1) {
+        const headers = bCalendarData[0];
+        const dateIndex = headers.indexOf("date");
+        const isActiveIndex = headers.indexOf("is_active");
+        
+        if (dateIndex !== -1 && isActiveIndex !== -1) {
+          for (let i = 1; i < bCalendarData.length; i++) {
+            const rowDate = bCalendarData[i][dateIndex];
+            const isActive = bCalendarData[i][isActiveIndex];
+            
+            let dateStr;
+            if (rowDate instanceof Date) {
+              dateStr = formatDate(rowDate);
+            } else {
+              dateStr = rowDate;
+            }
+            
+            if (!isActive) {
+              if (!stops[dateStr]) {
+                stops[dateStr] = {};
+              }
+              stops[dateStr]['breakfast'] = true;
+            }
+          }
+        }
+      }
+    }
+    
+    // 夕食カレンダーの処理
+    if (dCalendarSheet) {
+      const dCalendarData = dCalendarSheet.getDataRange().getValues();
+      if (dCalendarData.length > 1) {
+        const headers = dCalendarData[0];
+        const dateIndex = headers.indexOf("date");
+        const isActiveIndex = headers.indexOf("is_active");
+        
+        if (dateIndex !== -1 && isActiveIndex !== -1) {
+          for (let i = 1; i < dCalendarData.length; i++) {
+            const rowDate = dCalendarData[i][dateIndex];
+            const isActive = dCalendarData[i][isActiveIndex];
+            
+            let dateStr;
+            if (rowDate instanceof Date) {
+              dateStr = formatDate(rowDate);
+            } else {
+              dateStr = rowDate;
+            }
+            
+            if (!isActive) {
+              if (!stops[dateStr]) {
+                stops[dateStr] = {};
+              }
+              stops[dateStr]['dinner'] = true;
+            }
+          }
+        }
+      }
+    }
+    
+    return { success: true, stops: stops };
+    
+  } catch (e) {
+    console.error('getRecruitmentStops Error: ' + e.message);
+    return { success: false, message: e.message };
+  }
+}
