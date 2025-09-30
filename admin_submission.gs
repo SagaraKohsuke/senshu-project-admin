@@ -962,7 +962,7 @@ function getRecruitmentStops(year, month) {
     const isActiveIndex = headers.indexOf("is_active");
     
     const stops = {};
-    const targetYearMonth = year + '-' + (month < 10 ? '0' + month : month);
+    const targetYearMonth = year.toString() + '-' + (month < 10 ? '0' + month : month.toString());
     
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
