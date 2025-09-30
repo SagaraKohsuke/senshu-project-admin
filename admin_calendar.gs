@@ -716,8 +716,35 @@ function toggleRecruitmentStop(date, mealType, year, month) {
     // is_activeを切り替え
     const currentActive = calendarData[targetRowIndex][isActiveIndex];
     const newActive = !currentActive;
+    const targetCalendarId = calendarData[targetRowIndex][calendarIdIndex];
     
     calendarSheet.getRange(targetRowIndex + 1, isActiveIndex + 1).setValue(newActive);
+    
+    // 休止する（is_activeをfalseにする）場合、関連する予約のis_reservedもfalseにする
+    if (!newActive) {
+      const reservationSheetName = `${prefix}_reservations_${yyyyMM}`;
+      const reservationSheet = ss.getSheetByName(reservationSheetName);
+      
+      if (reservationSheet) {
+        const reservationData = reservationSheet.getDataRange().getValues();
+        const reservationHeaders = reservationData[0];
+        
+        const reservationCalendarIdIndex = reservationHeaders.indexOf(`${prefix}_calendar_id`);
+        const reservationStatusIndex = reservationHeaders.indexOf("is_reserved");
+        
+        if (reservationCalendarIdIndex !== -1 && reservationStatusIndex !== -1) {
+          // 該当するcalendar_idを持つ予約を全てfalseに更新
+          for (let i = 1; i < reservationData.length; i++) {
+            const rowCalendarId = reservationData[i][reservationCalendarIdIndex];
+            const isReserved = reservationData[i][reservationStatusIndex];
+            
+            if (rowCalendarId === targetCalendarId && isReserved) {
+              reservationSheet.getRange(i + 1, reservationStatusIndex + 1).setValue(false);
+            }
+          }
+        }
+      }
+    }
     
     return {
       success: true,

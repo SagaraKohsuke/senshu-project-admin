@@ -1095,6 +1095,69 @@ function toggleRecruitmentStop(date, mealType, year, month) {
       ]);
     }
     
+    // 休止する場合、関連する予約のis_reservedもfalseにする
+    const isStopping = (mealType === 'breakfast' && newBreakfastStopped) || 
+                       (mealType === 'dinner' && newDinnerStopped);
+    
+    if (isStopping) {
+      const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
+      const prefix = mealType === "breakfast" ? "b" : "d";
+      const calendarSheetName = `${prefix}_calendar_${yyyyMM}`;
+      const reservationSheetName = `${prefix}_reservations_${yyyyMM}`;
+      
+      const calendarSheet = ss.getSheetByName(calendarSheetName);
+      const reservationSheet = ss.getSheetByName(reservationSheetName);
+      
+      if (calendarSheet && reservationSheet) {
+        // カレンダーシートから該当する日付のcalendar_idを取得
+        const calendarData = calendarSheet.getDataRange().getValues();
+        const calendarHeaders = calendarData[0];
+        const calendarIdIndex = calendarHeaders.indexOf(`${prefix}_calendar_id`);
+        const calendarDateIndex = calendarHeaders.indexOf("date");
+        
+        if (calendarIdIndex !== -1 && calendarDateIndex !== -1) {
+          let targetCalendarId = null;
+          
+          for (let i = 1; i < calendarData.length; i++) {
+            const rowDate = calendarData[i][calendarDateIndex];
+            let dateStr;
+            
+            if (rowDate instanceof Date) {
+              dateStr = rowDate.getFullYear() + '-' + 
+                       (rowDate.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                       rowDate.getDate().toString().padStart(2, '0');
+            } else {
+              dateStr = rowDate.toString();
+            }
+            
+            if (dateStr === date) {
+              targetCalendarId = calendarData[i][calendarIdIndex];
+              break;
+            }
+          }
+          
+          // 予約シートで該当するcalendar_idのis_reservedをfalseに更新
+          if (targetCalendarId) {
+            const reservationData = reservationSheet.getDataRange().getValues();
+            const reservationHeaders = reservationData[0];
+            const reservationCalendarIdIndex = reservationHeaders.indexOf(`${prefix}_calendar_id`);
+            const reservationStatusIndex = reservationHeaders.indexOf("is_reserved");
+            
+            if (reservationCalendarIdIndex !== -1 && reservationStatusIndex !== -1) {
+              for (let i = 1; i < reservationData.length; i++) {
+                const rowCalendarId = reservationData[i][reservationCalendarIdIndex];
+                const isReserved = reservationData[i][reservationStatusIndex];
+                
+                if (rowCalendarId === targetCalendarId && isReserved) {
+                  reservationSheet.getRange(i + 1, reservationStatusIndex + 1).setValue(false);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
     return {
       success: true,
       message: message
