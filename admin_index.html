@@ -401,7 +401,7 @@
         </button>
       </div>
 
-      <div class="summary-section" v-if="isCurrentMonth">
+      <div class="summary-section" v-if="calendarLoaded">
         <div class="summary-title">
           {{ reservationStatusTitle }}
         </div>
@@ -734,7 +734,13 @@
         filteredBreakfastMenus: [], // フィルタされた朝食メニューリスト
         filteredDinnerMenus: [], // フィルタされた夕食メニューリスト
         breakfastSelectedIndex: -1, // 朝食の選択中インデックス
-        dinnerSelectedIndex: -1 // 夕食の選択中インデックス
+        dinnerSelectedIndex: -1, // 夕食の選択中インデックス
+        // 明日のデータ（翌月の場合）
+        tomorrowData: {
+          loading: false,
+          breakfast: { count: 0, users: [] },
+          dinner: { count: 0, users: [] }
+        }
       },
       computed: {
         isCurrentMonth: function() {
@@ -777,7 +783,7 @@
           
           // 明日が翌月の場合の処理
           if (tomorrow.getMonth() + 1 !== this.currentMonth || tomorrow.getFullYear() !== this.currentYear) {
-            return 0;
+            return this.tomorrowData.breakfast.count;
           }
           
           const breakfast = this.getBreakfastForDate(tomorrowStr);
@@ -790,7 +796,7 @@
           
           // 明日が翌月の場合の処理
           if (tomorrow.getMonth() + 1 !== this.currentMonth || tomorrow.getFullYear() !== this.currentYear) {
-            return 0;
+            return this.tomorrowData.dinner.count;
           }
           
           const dinner = this.getDinnerForDate(tomorrowStr);
@@ -803,7 +809,7 @@
           
           // 明日が翌月の場合の処理
           if (tomorrow.getMonth() + 1 !== this.currentMonth || tomorrow.getFullYear() !== this.currentYear) {
-            return [];
+            return this.tomorrowData.breakfast.users;
           }
           
           const breakfast = this.getBreakfastForDate(tomorrowStr);
@@ -816,7 +822,7 @@
           
           // 明日が翌月の場合の処理
           if (tomorrow.getMonth() + 1 !== this.currentMonth || tomorrow.getFullYear() !== this.currentYear) {
-            return [];
+            return this.tomorrowData.dinner.users;
           }
           
           const dinner = this.getDinnerForDate(tomorrowStr);
@@ -854,6 +860,9 @@
             .withSuccessHandler(this.processCalendarData)
             .withFailureHandler(this.handleCalendarError)
             .getMonthlyReservationCounts(this.currentYear, this.currentMonth);
+          
+          // 明日のデータを取得（翌月の場合）
+          this.fetchTomorrowData();
         },
         fetchRecruitmentStops: function() {
           google.script.run
@@ -877,6 +886,57 @@
             this.dinnerMenuList = data.dinner;
           } else {
             console.error('メニューリストの取得に失敗しました:', data.message);
+          }
+        },
+        fetchTomorrowData: function() {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          
+          // 明日が翌月の場合のみデータを取得
+          if (tomorrow.getMonth() + 1 !== this.currentMonth || tomorrow.getFullYear() !== this.currentYear) {
+            this.tomorrowData.loading = true;
+            const tomorrowYear = tomorrow.getFullYear();
+            const tomorrowMonth = tomorrow.getMonth() + 1;
+            const tomorrowDateStr = this.formatDate(tomorrow);
+            
+            google.script.run
+              .withSuccessHandler(response => {
+                this.processTomorrowData(response, tomorrowDateStr);
+              })
+              .withFailureHandler(error => {
+                console.error('明日のデータ取得に失敗:', error);
+                this.tomorrowData.loading = false;
+                // エラーの場合はデフォルト値を設定
+                this.tomorrowData.breakfast = { count: 0, users: [] };
+                this.tomorrowData.dinner = { count: 0, users: [] };
+              })
+              .getMonthlyReservationCounts(tomorrowYear, tomorrowMonth);
+          } else {
+            // 明日が同月の場合はデータをクリア
+            this.tomorrowData.breakfast = { count: 0, users: [] };
+            this.tomorrowData.dinner = { count: 0, users: [] };
+            this.tomorrowData.loading = false;
+          }
+        },
+        processTomorrowData: function(data, tomorrowDateStr) {
+          this.tomorrowData.loading = false;
+          
+          if (data && data.success) {
+            // 明日の朝食データを検索
+            const tomorrowBreakfast = data.breakfast.find(item => item.date === tomorrowDateStr);
+            this.tomorrowData.breakfast = tomorrowBreakfast ? 
+              { count: tomorrowBreakfast.count, users: tomorrowBreakfast.users } :
+              { count: 0, users: [] };
+            
+            // 明日の夕食データを検索
+            const tomorrowDinner = data.dinner.find(item => item.date === tomorrowDateStr);
+            this.tomorrowData.dinner = tomorrowDinner ? 
+              { count: tomorrowDinner.count, users: tomorrowDinner.users } :
+              { count: 0, users: [] };
+          } else {
+            console.error('明日のデータ処理に失敗:', data);
+            this.tomorrowData.breakfast = { count: 0, users: [] };
+            this.tomorrowData.dinner = { count: 0, users: [] };
           }
         },
         processCalendarData: function(data) {

@@ -158,7 +158,7 @@ function updateMenuForCalendar(calendarId, mealType, menuName, calorieValue, yea
     }
     
     // カレンダーのmenu_idを更新
-    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const yyyyMM = year.toString() + (month < 10 ? "0" + month : month.toString());
     const calendarSheetName = mealType === 'breakfast' ? `b_calendar_${yyyyMM}` : `d_calendar_${yyyyMM}`;
     const calendarSheet = ss.getSheetByName(calendarSheetName);
     

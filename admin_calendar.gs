@@ -103,7 +103,7 @@ function generateMealSheet(year, month) {
     const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
     const ss = SpreadsheetApp.openById(spreadsheetId);
     
-    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const yyyyMM = year.toString() + (month < 10 ? "0" + month : month.toString());
     const sheetName = "meal_sheet_" + yyyyMM;
     
     // 既存シートを削除して新規作成
@@ -305,7 +305,7 @@ function generateMonthlyMealSheet(year, month) {
     });
     
     // 対象月のシート名を決定（食事原紙_yyyymm形式）
-    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const yyyyMM = year.toString() + (month < 10 ? "0" + month : month.toString());
     const mealSheetName = "食事原紙_" + yyyyMM;
     
     console.log('対象シート:', mealSheetName);
@@ -510,7 +510,7 @@ function createDailyMealRecord(year, month, day) {
     });
     
     // 適切なシート名を決定（食事原紙_yyyymm形式）
-    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const yyyyMM = year.toString() + (month < 10 ? "0" + month : month.toString());
     const mealSheetName = "食事原紙_" + yyyyMM;
     
     // 食事原紙シートを取得
@@ -839,7 +839,7 @@ function createMonthlyMealSheet(year, month) {
     const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
     const mealSS = SpreadsheetApp.openById(mealSheetId);
     
-    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const yyyyMM = year.toString() + (month < 10 ? "0" + month : month.toString());
     const newSheetName = "食事原紙_" + yyyyMM;
     
     // 既存シートの確認
@@ -1005,7 +1005,7 @@ function getMonthlyReservationCounts(year, month) {
     const ss = SpreadsheetApp.openById(spreadsheetId);
     console.log('✅ スプレッドシート接続成功');
     
-    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const yyyyMM = year.toString() + (month < 10 ? "0" + month : month.toString());
     const bCalendarSheetName = "b_calendar_" + yyyyMM;
     const dCalendarSheetName = "d_calendar_" + yyyyMM;
     const bReservationSheetName = "b_reservations_" + yyyyMM;

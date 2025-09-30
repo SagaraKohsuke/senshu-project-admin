@@ -675,7 +675,7 @@ function getMonthlyReservationCounts(year, month) {
     const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
     const ss = SpreadsheetApp.openById(spreadsheetId);
     
-    const yyyyMM = year + (month < 10 ? "0" + month : month);
+    const yyyyMM = year.toString() + (month < 10 ? "0" + month : month.toString());
     const bCalendarSheetName = "b_calendar_" + yyyyMM;
     const dCalendarSheetName = "d_calendar_" + yyyyMM;
     const bReservationSheetName = "b_reservations_" + yyyyMM;
@@ -962,7 +962,7 @@ function getRecruitmentStops(year, month) {
     const isActiveIndex = headers.indexOf("is_active");
     
     const stops = {};
-    const targetYearMonth = year + '-' + (month < 10 ? '0' + month : month);
+    const targetYearMonth = year.toString() + '-' + (month < 10 ? '0' + month : month.toString());
     
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
