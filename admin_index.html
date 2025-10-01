@@ -702,6 +702,26 @@
   </div>
 
   <script>
+    // Google Docs マニュアルURL
+    const MANUAL_URL = 'https://docs.google.com/document/d/1CtMo7x3OPKnWDUza8g8F42QYDx15OjAwduoQKCjbQfA/edit';
+    
+    // グローバルエラーハンドラー
+    window.onerror = function(message, source, lineno, colno, error) {
+      console.error('グローバルエラーが発生しました:', message, source, lineno, colno, error);
+      if (confirm('エラーが発生しました。マニュアルを確認しますか？')) {
+        window.open(MANUAL_URL, '_blank');
+      }
+      return true; // エラーを処理済みとしてマーク
+    };
+    
+    // Promise rejection エラーハンドラー
+    window.addEventListener('unhandledrejection', function(event) {
+      console.error('未処理のPromise rejectionが発生しました:', event.reason);
+      if (confirm('エラーが発生しました。マニュアルを確認しますか？')) {
+        window.open(MANUAL_URL, '_blank');
+      }
+    });
+    
     new Vue({
       el: '#app',
       data: {
@@ -1061,7 +1081,9 @@
           console.error('カレンダーデータの取得中にエラーが発生しました:', error);
           this.loading = false;
           this.calendarLoading = false;
-          alert('カレンダーデータの読み込み中にエラーが発生しました。');
+          if (confirm('カレンダーデータの読み込み中にエラーが発生しました。マニュアルを確認しますか？')) {
+            window.open(MANUAL_URL, '_blank');
+          }
         },
         handleError: function(error) {
           console.error('エラーが発生しました:', error);
@@ -1070,7 +1092,9 @@
           this.menuUpdateLoading = false;
           this.recruitmentToggleLoading = false;
           this.sheetOpenLoading = false;
-          alert('処理中にエラーが発生しました。ページを更新してください。');
+          if (confirm('処理中にエラーが発生しました。マニュアルを確認しますか？')) {
+            window.open(MANUAL_URL, '_blank');
+          }
         },
         prevMonth: function() {
           if (this.currentMonth === 1) {
@@ -1437,8 +1461,23 @@
       },
       mounted: function() {
         this.loadCalendarData();
+      },
+      errorCaptured: function(err, vm, info) {
+        console.error('Vue コンポーネントエラー:', err, info);
+        if (confirm('アプリケーションエラーが発生しました。マニュアルを確認しますか？')) {
+          window.open(MANUAL_URL, '_blank');
+        }
+        return false; // エラーの伝播を停止
       }
     });
+    
+    // Vue グローバルエラーハンドラー
+    Vue.config.errorHandler = function(err, vm, info) {
+      console.error('Vue グローバルエラー:', err, info);
+      if (confirm('アプリケーションエラーが発生しました。マニュアルを確認しますか？')) {
+        window.open(MANUAL_URL, '_blank');
+      }
+    };
   </script>
 </body>
 </html>
