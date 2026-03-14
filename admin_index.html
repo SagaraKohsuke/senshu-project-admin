@@ -1387,7 +1387,13 @@
         },
         toggleSelectedRecruitmentStop: function(mealType) {
           if (!this.selectedDate) return;
-          
+
+          if (!this.isRecruitmentStopped(this.selectedDate, mealType)) {
+            const mealLabel = mealType === 'breakfast' ? '朝食' : '夕食';
+            const confirmed = confirm(mealLabel + 'の募集を休止します。現在の予約はすべてキャンセルされます。よろしいですか？');
+            if (!confirmed) return;
+          }
+
           this.recruitmentToggleLoading = true;
           google.script.run
             .withSuccessHandler(response => {
