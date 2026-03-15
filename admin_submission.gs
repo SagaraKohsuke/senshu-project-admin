@@ -13,41 +13,41 @@ function getMealSheetUrl() {
 }
 
 /**
- * 毎月1日00:00に新しい月のシートを作成する（トリガー関数）
+ * 指定した年月の食事原紙シートを作成する
+ * 既に同名のシートが存在する場合は作成をスキップする
+ * @param {number} year 作成する年
+ * @param {number} month 作成する月
  */
-function createMonthlySheet() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+function createSheetForYearMonth(year, month) {
   const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
   const newSheetName = `食事原紙_${yyyyMM}`;
-  
+
   const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
   const mealSS = SpreadsheetApp.openById(mealSheetId);
-  
+
   // 既に同名のシートがある場合は作成しない
   const existingSheet = mealSS.getSheetByName(newSheetName);
   if (existingSheet) {
-    console.log(`シート ${newSheetName} は既に存在します。`);
+    console.log(`シート ${newSheetName} は既に存在します。スキップします。`);
     return;
   }
-  
+
   // テンプレートシートを取得
   const templateSheet = mealSS.getSheetByName("食事原紙");
   if (!templateSheet) {
     console.error("テンプレートシート「食事原紙」が見つかりません。");
     return;
   }
-  
+
   // テンプレートをコピーして新しいシートを作成
   const newSheet = templateSheet.copyTo(mealSS);
   newSheet.setName(newSheetName);
-  
-  // 作成したシートに初期データを設定（ユーザー名のみ）
+
+  // 作成したシートに初期データを設定
   try {
     const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
     const ss = SpreadsheetApp.openById(spreadsheetId);
-    
+
     // ユーザーシートからIDと名前の対応表を作成
     const usersSheet = ss.getSheetByName("users");
     if (usersSheet) {
@@ -59,16 +59,41 @@ function createMonthlySheet() {
       for (let i = 1; i < usersData.length; i++) {
         userIdToNameMap[usersData[i][userIdIndex]] = usersData[i][userNameIndex];
       }
-      
-      // 名前のみ設定（テンプレートの関数はそのまま使用）
+
+      // ユーザー名を設定
       updateUserNamesInSheet(newSheet, userIdToNameMap);
     }
-    
+
+    // タイトルおよび日付・曜日ヘッダーを対象月に合わせて更新
+    updateSheetHeader(newSheet, year, month);
+
+    // 土日列に休日マーカー（黄色背景）を適用
+    applyDiagonalLinesForClosedDays(newSheet, year, month);
+
   } catch (e) {
     console.error('新しいシートの初期化中にエラーが発生しました: ' + e.message);
   }
-  
+
   console.log(`新しいシート ${newSheetName} を作成しました。`);
+}
+
+/**
+ * 毎月1日00:00に新しい月のシートを作成する（トリガー関数）
+ * 当月と翌月の食事原紙シートを作成する
+ * 既にシートが存在する場合はスキップする
+ */
+function createMonthlySheet() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  // 当月のシートを作成
+  createSheetForYearMonth(year, month);
+
+  // 翌月のシートを作成
+  const nextMonth = (month % 12) + 1;
+  const nextYear = nextMonth === 1 ? year + 1 : year;
+  createSheetForYearMonth(nextYear, nextMonth);
 }
 
 /**
@@ -263,7 +288,7 @@ function updateDateHeaders(sheet, year, month) {
 }
 
 /**
- * 平日停止日に斜線を適用
+ * 土日に黄色背景マーカーを適用
  */
 function applyDiagonalLinesForClosedDays(sheet, year, month) {
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -272,15 +297,15 @@ function applyDiagonalLinesForClosedDays(sheet, year, month) {
     const date = new Date(year, month - 1, day);
     const dayOfWeek = date.getDay(); // 0=日曜, 6=土曜
     
-    // 土曜日は朝食・夕食ともに停止、日曜日は夕食のみ停止
+    // 土曜日は夕食のみ黄色、日曜日は朝食・夕食ともに黄色
     if (dayOfWeek === 6 || dayOfWeek === 0) {
-      applyDiagonalLineForDay(sheet, day, dayOfWeek === 6); // 土曜日は朝食も停止
+      applyDiagonalLineForDay(sheet, day, dayOfWeek === 0); // 日曜日は朝食も黄色
     }
   }
 }
 
 /**
- * 指定日に斜線を適用
+ * 指定日に黄色背景を適用
  */
 function applyDiagonalLineForDay(sheet, day, includeBreakfast) {
   let blockStartRow, relativeDay;
@@ -298,24 +323,23 @@ function applyDiagonalLineForDay(sheet, day, includeBreakfast) {
   const breakfastCol = (relativeDay - 1) * 2 + 3;
   const dinnerCol = breakfastCol + 1;
   
-  // 各ユーザー行に斜線を適用
+  // 各ユーザー行に黄色背景を適用
   for (let row = blockStartRow; row < blockStartRow + 33; row++) {
     if (includeBreakfast) {
-      // 朝食セルに斜線
+      // 朝食セルに黄色背景
       applyDiagonalLineToCell(sheet, row, breakfastCol);
     }
-    // 夕食セルに斜線
+    // 夕食セルに黄色背景
     applyDiagonalLineToCell(sheet, row, dinnerCol);
   }
 }
 
 /**
- * セルに斜線を適用
+ * セルに黄色背景を適用
  */
 function applyDiagonalLineToCell(sheet, row, col) {
   const cell = sheet.getRange(row, col);
-  cell.setBorder(null, null, null, null, true, null); // 斜線を設定
-  cell.setBackground('#f0f0f0'); // 薄いグレー背景
+  cell.setBackground('#FFFF00'); // 黄色背景
 }
 
 /**
@@ -523,9 +547,9 @@ function testCreateSpecificMonthSheet(testYear, testMonth) {
     updateSheetHeader(newSheet, testYear, testMonth);
     console.log('✅ ヘッダー・日付設定完了');
     
-    // 平日停止日の斜線を設定
+    // 土日の黄色背景を設定
     applyDiagonalLinesForClosedDays(newSheet, testYear, testMonth);
-    console.log('✅ 斜線設定完了');
+    console.log('✅ 黄色背景設定完了');
     
   } catch (e) {
     console.error('新しいシートの初期化中にエラーが発生しました: ' + e.message);
@@ -597,9 +621,9 @@ function testUpdateSpecificMonthSheet(testYear, testMonth) {
     updateSheetHeader(targetSheet, testYear, testMonth);
     console.log('✅ ヘッダー更新完了');
 
-    // 平日停止日の斜線を設定
+    // 土日の黄色背景を設定
     applyDiagonalLinesForClosedDays(targetSheet, testYear, testMonth);
-    console.log('✅ 斜線設定完了');
+    console.log('✅ 黄色背景設定完了');
 
     // 前半・後半ブロックごとにユーザーIDと行のマッピングを作成
     const userRowMap_1_16 = createUserRowMap(targetSheet, 5, 37);
