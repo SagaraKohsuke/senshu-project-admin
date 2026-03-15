@@ -861,6 +861,14 @@ function getRecruitmentStops(year, month) {
 function createMonthlyMealSheet(year, month) {
   try {
     console.log('=== createMonthlyMealSheetImpl開始 ===');
+
+    // 引数が省略された場合は当月を使用
+    if (year === undefined || month === undefined) {
+      const now = new Date();
+      year = now.getFullYear();
+      month = now.getMonth() + 1;
+    }
+
     console.log('パラメータ:', year, month);
     
     const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
@@ -881,11 +889,11 @@ function createMonthlyMealSheet(year, month) {
     }
     
     // テンプレートシートを取得
-    const templateSheet = mealSS.getSheetByName("Template");
+    const templateSheet = mealSS.getSheetByName("食事原紙");
     if (!templateSheet) {
       return {
         success: false,
-        message: 'テンプレートシートが見つかりません'
+        message: 'テンプレートシート「食事原紙」が見つかりません'
       };
     }
     
