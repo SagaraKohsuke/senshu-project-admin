@@ -13,41 +13,41 @@ function getMealSheetUrl() {
 }
 
 /**
- * 毎月1日00:00に新しい月のシートを作成する（トリガー関数）
+ * 指定した年月の食事原紙シートを作成する
+ * 既に同名のシートが存在する場合は作成をスキップする
+ * @param {number} year 作成する年
+ * @param {number} month 作成する月
  */
-function createMonthlySheet() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+function createSheetForYearMonth(year, month) {
   const yyyyMM = `${year}${month.toString().padStart(2, "0")}`;
   const newSheetName = `食事原紙_${yyyyMM}`;
-  
+
   const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
   const mealSS = SpreadsheetApp.openById(mealSheetId);
-  
+
   // 既に同名のシートがある場合は作成しない
   const existingSheet = mealSS.getSheetByName(newSheetName);
   if (existingSheet) {
-    console.log(`シート ${newSheetName} は既に存在します。`);
+    console.log(`シート ${newSheetName} は既に存在します。スキップします。`);
     return;
   }
-  
+
   // テンプレートシートを取得
   const templateSheet = mealSS.getSheetByName("食事原紙");
   if (!templateSheet) {
     console.error("テンプレートシート「食事原紙」が見つかりません。");
     return;
   }
-  
+
   // テンプレートをコピーして新しいシートを作成
   const newSheet = templateSheet.copyTo(mealSS);
   newSheet.setName(newSheetName);
-  
+
   // 作成したシートに初期データを設定（ユーザー名のみ）
   try {
     const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
     const ss = SpreadsheetApp.openById(spreadsheetId);
-    
+
     // ユーザーシートからIDと名前の対応表を作成
     const usersSheet = ss.getSheetByName("users");
     if (usersSheet) {
@@ -59,16 +59,35 @@ function createMonthlySheet() {
       for (let i = 1; i < usersData.length; i++) {
         userIdToNameMap[usersData[i][userIdIndex]] = usersData[i][userNameIndex];
       }
-      
+
       // 名前のみ設定（テンプレートの関数はそのまま使用）
       updateUserNamesInSheet(newSheet, userIdToNameMap);
     }
-    
+
   } catch (e) {
     console.error('新しいシートの初期化中にエラーが発生しました: ' + e.message);
   }
-  
+
   console.log(`新しいシート ${newSheetName} を作成しました。`);
+}
+
+/**
+ * 毎月1日00:00に新しい月のシートを作成する（トリガー関数）
+ * 当月と翌月の食事原紙シートを作成する
+ * 既にシートが存在する場合はスキップする
+ */
+function createMonthlySheet() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  // 当月のシートを作成
+  createSheetForYearMonth(year, month);
+
+  // 翌月のシートを作成
+  const nextMonth = (month % 12) + 1;
+  const nextYear = nextMonth === 1 ? year + 1 : year;
+  createSheetForYearMonth(nextYear, nextMonth);
 }
 
 /**
