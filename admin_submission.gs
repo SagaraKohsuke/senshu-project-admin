@@ -384,7 +384,8 @@ function processReservations(reservations, isDinner, userRowMap_1_16, userRowMap
 
 /**
  * トリガーを設定する関数（手動で1回実行する）
- * - 月次トリガー：毎月1日 00:00に新しい月のシート作成
+ * - 月次トリガー①：毎月1日 00:00に新しい月のシート作成
+ * - 月次トリガー②：毎月1日 01:00に古い月次シートの自動削除
  * - 日次トリガー：毎日 12:00にデータ更新
  */
 function setupTriggers() {
@@ -400,6 +401,13 @@ function setupTriggers() {
     .onMonthDay(1)
     .atHour(0)
     .create();
+
+  // 毎月1日01:00のトリガー（古い月次シートの自動削除）
+  ScriptApp.newTrigger('deleteOldSheets')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(1)
+    .create();
   
   // 毎日12:00のトリガー（データ更新）
   ScriptApp.newTrigger('updateDailyMealSheet')
@@ -408,7 +416,7 @@ function setupTriggers() {
     .atHour(12)
     .create();
   
-  console.log('トリガーを設定しました：月次(1日00:00), 日次(毎日12:00)');
+  console.log('トリガーを設定しました：月次①(1日00:00), 月次②(1日01:00), 日次(毎日12:00)');
 }
 
 // ==========================================
