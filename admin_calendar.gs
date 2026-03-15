@@ -1370,4 +1370,85 @@ function testCreateMonthlyMealSheet() {
     console.log(`1日の期待曜日: ${dayNames[expected1.getDay()]}`);
   }
 }
+ * 2ヶ月以上前の月次シートを自動削除する関数
+ * 毎月1日にトリガーから自動実行できます
+ * @return {Object} 削除結果（deletedCount, notFoundCount）
+ */
+function deleteOldSheets() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  const dataSS = SpreadsheetApp.openById("17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk");
+  const mealSS = SpreadsheetApp.openById("17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4");
+
+  let deletedCount = 0;
+  let notFoundCount = 0;
+
+  // 過去24ヶ月を走査（2ヶ月前〜25ヶ月前の計24ヶ月）
+  for (let i = 2; i <= 25; i++) {
+    // i=2 が「2ヶ月前」、i=25 が「25ヶ月前」
+    const targetDate = new Date(currentYear, currentMonth - 1 - i, 1);
+    const targetYear = targetDate.getFullYear();
+    const targetMonth = targetDate.getMonth() + 1;
+    const yyyyMM = targetYear + (targetMonth < 10 ? "0" + targetMonth : String(targetMonth));
+
+    // データSSの削除対象シート名
+    const dataSheetNames = [
+      "b_calendar_" + yyyyMM,
+      "d_calendar_" + yyyyMM,
+      "b_reservations_" + yyyyMM,
+      "d_reservations_" + yyyyMM
+    ];
+
+    // 食事SSの削除対象シート名
+    const mealSheetNames = [
+      "meal_sheet_" + yyyyMM
+    ];
+
+    // データSSのシートを削除
+    dataSheetNames.forEach(function(sheetName) {
+      console.log('削除対象シート確認: ' + sheetName + ' (データSS)');
+      const sheet = dataSS.getSheetByName(sheetName);
+      if (sheet) {
+        try {
+          dataSS.deleteSheet(sheet);
+          console.log('✅ 削除完了: ' + sheetName + ' (データSS)');
+          deletedCount++;
+        } catch (e) {
+          console.log('❌ 削除失敗: ' + sheetName + ' (データSS) - ' + e.message);
+        }
+      } else {
+        console.log('⚠️ シートが存在しません（スキップ）: ' + sheetName + ' (データSS)');
+        notFoundCount++;
+      }
+    });
+
+    // 食事SSのシートを削除
+    mealSheetNames.forEach(function(sheetName) {
+      console.log('削除対象シート確認: ' + sheetName + ' (食事SS)');
+      const sheet = mealSS.getSheetByName(sheetName);
+      if (sheet) {
+        try {
+          mealSS.deleteSheet(sheet);
+          console.log('✅ 削除完了: ' + sheetName + ' (食事SS)');
+          deletedCount++;
+        } catch (e) {
+          console.log('❌ 削除失敗: ' + sheetName + ' (食事SS) - ' + e.message);
+        }
+      } else {
+        console.log('⚠️ シートが存在しません（スキップ）: ' + sheetName + ' (食事SS)');
+        notFoundCount++;
+      }
+    });
+  }
+
+  console.log('=== deleteOldSheets 完了 ===');
+  console.log('削除したシート数: ' + deletedCount);
+  console.log('存在しなかったシート数: ' + notFoundCount);
+
+  return {
+    deletedCount: deletedCount,
+    notFoundCount: notFoundCount
+  };
 }
