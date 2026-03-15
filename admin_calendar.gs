@@ -896,34 +896,45 @@ function createMonthlyMealSheet(year, month) {
     
     // 日付データを生成
     const daysInMonth = new Date(year, month, 0).getDate();
-    const dates = [];
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+    // 日付・曜日ヘッダーを設定（前半: 行2, 後半: 行42、C列から2列/日）
     for (let day = 1; day <= daysInMonth; day++) {
-      dates.push(day);
+      const date = new Date(year, month - 1, day);
+      const dayName = dayNames[date.getDay()];
+
+      if (day <= 16) {
+        // 前半: 行2, C列(3)から2列/日
+        const col = (day - 1) * 2 + 3;
+        newSheet.getRange(2, col).setValue(day);
+        newSheet.getRange(2, col + 1).setValue(dayName);
+      } else {
+        // 後半: 行42, C列(3)から2列/日
+        const col = (day - 17) * 2 + 3;
+        newSheet.getRange(42, col).setValue(day);
+        newSheet.getRange(42, col + 1).setValue(dayName);
+      }
     }
-    
-    // 日付ヘッダーを設定（2行目に日付を配置）
-    if (daysInMonth > 0) {
-      const dateRange = newSheet.getRange(2, 2, 1, daysInMonth);
-      dateRange.setValues([dates]);
-    }
-    
+    console.log(`✅ 日付・曜日ヘッダー書き込み完了: ${year}/${month} (${daysInMonth}日)`);
+
     // 週末マーカーの適用（土日列に黄色背景 #FFFF00）
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month - 1, day);
       const dayOfWeek = date.getDay();
-      const col = day + 1; // 2列目から開始
-      
+
       // 土曜日(6)または日曜日(0)の場合
       if (dayOfWeek === 0 || dayOfWeek === 6) {
-        console.log(`週末マーカー適用: ${year}/${month}/${day} (${dayOfWeek === 0 ? '日' : '土'}曜日)`);
-        
-        // 前半セクション (5-37行) - 数式保護行40をスキップ
-        const frontRange = newSheet.getRange(5, col, 33, 1);
-        frontRange.setBackground('#FFFF00');
-        
-        // 後半セクション (45-77行) - 数式保護行44, 79, 80をスキップ
-        const backRange = newSheet.getRange(45, col, 33, 1);
-        backRange.setBackground('#FFFF00');
+        console.log(`週末マーカー適用: ${year}/${month}/${day} (${dayNames[dayOfWeek]}曜日)`);
+
+        if (day <= 16) {
+          // 前半: 朝食列（奇数）・夕食列（偶数）
+          const col = (day - 1) * 2 + 3;
+          newSheet.getRange(5, col, 33, 2).setBackground('#FFFF00');
+        } else {
+          // 後半: 朝食列・夕食列
+          const col = (day - 17) * 2 + 3;
+          newSheet.getRange(45, col, 33, 2).setBackground('#FFFF00');
+        }
       }
     }
     
@@ -1319,4 +1330,44 @@ function getMonthlyReservationCounts(year, month) {
       dinner: []
     };
   }
+}
+
+/**
+ * createMonthlyMealSheet の手動テスト用関数
+ * GASエディタから直接実行してシート生成を確認する
+ * ※ テスト後に生成されたシートは手動で削除してください
+ */
+function testCreateMonthlyMealSheet() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  console.log(`=== testCreateMonthlyMealSheet 開始: ${year}年${month}月 ===`);
+
+  // 既存シートがある場合は一度削除して再生成（テスト用）
+  const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+  const mealSS = SpreadsheetApp.openById(mealSheetId);
+  const sheetName = `食事原紙_${year}${month.toString().padStart(2, "0")}`;
+  const existing = mealSS.getSheetByName(sheetName);
+  if (existing) {
+    mealSS.deleteSheet(existing);
+    console.log(`既存シート「${sheetName}」を削除しました`);
+  }
+
+  const result = createMonthlyMealSheet(year, month);
+  console.log('結果:', JSON.stringify(result));
+
+  // 曜日検証ログ
+  const newSheet = mealSS.getSheetByName(sheetName);
+  if (newSheet) {
+    console.log('--- 前半ヘッダー検証 (行2, C〜F列) ---');
+    console.log(`1日: ${newSheet.getRange(2, 3).getValue()} ${newSheet.getRange(2, 4).getValue()}`);
+    console.log(`2日: ${newSheet.getRange(2, 5).getValue()} ${newSheet.getRange(2, 6).getValue()}`);
+    console.log(`3日: ${newSheet.getRange(2, 7).getValue()} ${newSheet.getRange(2, 8).getValue()}`);
+
+    const expected1 = new Date(year, month - 1, 1);
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    console.log(`1日の期待曜日: ${dayNames[expected1.getDay()]}`);
+  }
+}
 }
