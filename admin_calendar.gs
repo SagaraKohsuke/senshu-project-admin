@@ -946,7 +946,7 @@ function createMonthlyMealSheet(year, month) {
     console.log('✅ 数式保護行をスキップ: 40, 44, 79, 80行目');
     
     // 予約データを取得して反映
-    const reservationData = getMonthlyReservationCountsImpl(year, month);
+    const reservationData = getMonthlyReservationCounts(year, month);
     if (reservationData.success) {
       updateMealSheetWithData(newSheet, reservationData, year, month);
     }
@@ -1347,18 +1347,27 @@ function testCreateMonthlyMealSheet() {
   // 既存シートがある場合は一度削除して再生成（テスト用）
   const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
   const mealSS = SpreadsheetApp.openById(mealSheetId);
-  const sheetName = `食事原紙_${year}${month.toString().padStart(2, "0")}`;
-  const existing = mealSS.getSheetByName(sheetName);
+  const testSheetName = `テスト_食事原紙_${year}${month.toString().padStart(2, "0")}`;
+  const existing = mealSS.getSheetByName(testSheetName);
   if (existing) {
     mealSS.deleteSheet(existing);
-    console.log(`既存シート「${sheetName}」を削除しました`);
+    console.log(`既存シート「${testSheetName}」を削除しました`);
   }
 
+  // テスト用に一時的にシート名を上書きするため、createMonthlyMealSheetを呼んだ後リネーム
   const result = createMonthlyMealSheet(year, month);
   console.log('結果:', JSON.stringify(result));
 
+  // 本来のシート名 → テスト用シート名にリネーム
+  const originalSheetName = `食事原紙_${year}${month.toString().padStart(2, "0")}`;
+  const createdSheet = mealSS.getSheetByName(originalSheetName);
+  if (createdSheet) {
+    createdSheet.setName(testSheetName);
+    console.log(`シート名を「${testSheetName}」にリネームしました`);
+  }
+
   // 曜日検証ログ
-  const newSheet = mealSS.getSheetByName(sheetName);
+  const newSheet = mealSS.getSheetByName(testSheetName);
   if (newSheet) {
     console.log('--- 前半ヘッダー検証 (行2, C〜F列) ---');
     console.log(`1日: ${newSheet.getRange(2, 3).getValue()} ${newSheet.getRange(2, 4).getValue()}`);
