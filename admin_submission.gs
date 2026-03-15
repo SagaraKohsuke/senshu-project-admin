@@ -81,6 +81,7 @@ function createSheetForYearMonth(year, month) {
  * 毎月1日00:00に新しい月のシートを作成する（トリガー関数）
  * 当月と翌月の食事原紙シートを作成する
  * 既にシートが存在する場合はスキップする
+ * シート作成後に2か月前以前の古いシートを削除する
  */
 function createMonthlySheet() {
   const now = new Date();
@@ -94,6 +95,44 @@ function createMonthlySheet() {
   const nextMonth = (month % 12) + 1;
   const nextYear = nextMonth === 1 ? year + 1 : year;
   createSheetForYearMonth(nextYear, nextMonth);
+
+  // 2か月前以前の古いシートを削除
+  deleteOldSheets();
+}
+
+/**
+ * 2か月前以前の食事原紙シートをすべて削除する（トリガー関数）
+ * 例: 現在が2026年3月の場合、2026年1月以前のシートを削除する
+ */
+function deleteOldSheets() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  // 削除対象の基準月（2か月前）を算出
+  const thresholdMonth = currentMonth - 2;
+  const thresholdYear = thresholdMonth <= 0 ? currentYear - 1 : currentYear;
+  const normalizedThresholdMonth = thresholdMonth <= 0 ? thresholdMonth + 12 : thresholdMonth;
+  const thresholdYYYYMM = `${thresholdYear}${normalizedThresholdMonth.toString().padStart(2, '0')}`;
+
+  const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
+  const mealSS = SpreadsheetApp.openById(mealSheetId);
+  const sheets = mealSS.getSheets();
+
+  sheets.forEach(sheet => {
+    const name = sheet.getName();
+    // 「食事原紙_YYYYMM」形式のシートのみ対象にする
+    const match = name.match(/^食事原紙_(\d{6})$/);
+    if (match) {
+      const sheetYYYYMM = match[1];
+      if (parseInt(sheetYYYYMM) <= parseInt(thresholdYYYYMM)) {
+        mealSS.deleteSheet(sheet);
+        console.log(`古いシート ${name} を削除しました。`);
+      }
+    }
+  });
+
+  console.log(`古いシートの削除が完了しました。（${thresholdYYYYMM} 以前を削除）`);
 }
 
 /**
@@ -690,6 +729,21 @@ function testCreateAndUpdate2025September() {
   testUpdateSpecificMonthSheet(2025, 9);
   
   console.log('=== 2025年9月のテスト完了 ===');
+}
+
+/**
+ * 【テスト用】古い食事原紙シートの削除テスト
+ * Google Apps Scriptエディタで直接実行してテストできます
+ */
+function testDeleteOldSheets() {
+  console.log('=== 古いシート削除テスト開始 ===');
+  
+  try {
+    deleteOldSheets();
+    console.log('✅ 古いシート削除テスト完了');
+  } catch (e) {
+    console.error('❌ 古いシート削除テストでエラー:', e.message);
+  }
 }
 
 // ==========================================
