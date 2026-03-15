@@ -297,15 +297,15 @@ function applyDiagonalLinesForClosedDays(sheet, year, month) {
     const date = new Date(year, month - 1, day);
     const dayOfWeek = date.getDay(); // 0=日曜, 6=土曜
     
-    // 土曜日は朝食・夕食ともに停止、日曜日は夕食のみ停止
+    // 土曜日は夕食のみ黄色、日曜日は朝食・夕食ともに黄色
     if (dayOfWeek === 6 || dayOfWeek === 0) {
-      applyDiagonalLineForDay(sheet, day, dayOfWeek === 6); // 土曜日は朝食も停止
+      applyDiagonalLineForDay(sheet, day, dayOfWeek === 0); // 日曜日は朝食も黄色
     }
   }
 }
 
 /**
- * 指定日に斜線を適用
+ * 指定日に黄色背景を適用
  */
 function applyDiagonalLineForDay(sheet, day, includeBreakfast) {
   let blockStartRow, relativeDay;
@@ -323,24 +323,23 @@ function applyDiagonalLineForDay(sheet, day, includeBreakfast) {
   const breakfastCol = (relativeDay - 1) * 2 + 3;
   const dinnerCol = breakfastCol + 1;
   
-  // 各ユーザー行に斜線を適用
+  // 各ユーザー行に黄色背景を適用
   for (let row = blockStartRow; row < blockStartRow + 33; row++) {
     if (includeBreakfast) {
-      // 朝食セルに斜線
+      // 朝食セルに黄色背景
       applyDiagonalLineToCell(sheet, row, breakfastCol);
     }
-    // 夕食セルに斜線
+    // 夕食セルに黄色背景
     applyDiagonalLineToCell(sheet, row, dinnerCol);
   }
 }
 
 /**
- * セルに斜線を適用
+ * セルに黄色背景を適用
  */
 function applyDiagonalLineToCell(sheet, row, col) {
   const cell = sheet.getRange(row, col);
-  cell.setBorder(null, null, null, null, true, null); // 斜線を設定
-  cell.setBackground('#f0f0f0'); // 薄いグレー背景
+  cell.setBackground('#FFFF00'); // 黄色背景
 }
 
 /**
