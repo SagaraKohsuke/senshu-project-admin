@@ -67,7 +67,7 @@ function createSheetForYearMonth(year, month) {
     // タイトルおよび日付・曜日ヘッダーを対象月に合わせて更新
     updateSheetHeader(newSheet, year, month);
 
-    // 土日列に休日マーカー（斜線・グレー背景）を適用
+    // 土日列に休日マーカー（黄色背景）を適用
     applyDiagonalLinesForClosedDays(newSheet, year, month);
 
   } catch (e) {
@@ -288,7 +288,7 @@ function updateDateHeaders(sheet, year, month) {
 }
 
 /**
- * 平日停止日に斜線を適用
+ * 土日に黄色背景マーカーを適用
  */
 function applyDiagonalLinesForClosedDays(sheet, year, month) {
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -547,9 +547,9 @@ function testCreateSpecificMonthSheet(testYear, testMonth) {
     updateSheetHeader(newSheet, testYear, testMonth);
     console.log('✅ ヘッダー・日付設定完了');
     
-    // 平日停止日の斜線を設定
+    // 土日の黄色背景を設定
     applyDiagonalLinesForClosedDays(newSheet, testYear, testMonth);
-    console.log('✅ 斜線設定完了');
+    console.log('✅ 黄色背景設定完了');
     
   } catch (e) {
     console.error('新しいシートの初期化中にエラーが発生しました: ' + e.message);
@@ -621,9 +621,9 @@ function testUpdateSpecificMonthSheet(testYear, testMonth) {
     updateSheetHeader(targetSheet, testYear, testMonth);
     console.log('✅ ヘッダー更新完了');
 
-    // 平日停止日の斜線を設定
+    // 土日の黄色背景を設定
     applyDiagonalLinesForClosedDays(targetSheet, testYear, testMonth);
-    console.log('✅ 斜線設定完了');
+    console.log('✅ 黄色背景設定完了');
 
     // 前半・後半ブロックごとにユーザーIDと行のマッピングを作成
     const userRowMap_1_16 = createUserRowMap(targetSheet, 5, 37);
