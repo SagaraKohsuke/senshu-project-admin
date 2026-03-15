@@ -1370,6 +1370,8 @@ function testCreateMonthlyMealSheet() {
     console.log(`1日の期待曜日: ${dayNames[expected1.getDay()]}`);
   }
 }
+
+/**
  * 2ヶ月以上前の月次シートを自動削除する関数
  * 毎月1日にトリガーから自動実行できます
  * @return {Object} 削除結果（deletedCount, notFoundCount）
