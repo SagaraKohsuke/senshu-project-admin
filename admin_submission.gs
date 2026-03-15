@@ -43,7 +43,7 @@ function createSheetForYearMonth(year, month) {
   const newSheet = templateSheet.copyTo(mealSS);
   newSheet.setName(newSheetName);
 
-  // 作成したシートに初期データを設定（ユーザー名のみ）
+  // 作成したシートに初期データを設定
   try {
     const spreadsheetId = "17XAfgiRV7GqcVqrT_geEeKFQ8oKbdFMaOfWN0YM_9uk";
     const ss = SpreadsheetApp.openById(spreadsheetId);
@@ -60,9 +60,15 @@ function createSheetForYearMonth(year, month) {
         userIdToNameMap[usersData[i][userIdIndex]] = usersData[i][userNameIndex];
       }
 
-      // 名前のみ設定（テンプレートの関数はそのまま使用）
+      // ユーザー名を設定
       updateUserNamesInSheet(newSheet, userIdToNameMap);
     }
+
+    // タイトルおよび日付・曜日ヘッダーを対象月に合わせて更新
+    updateSheetHeader(newSheet, year, month);
+
+    // 土日列に休日マーカー（斜線・グレー背景）を適用
+    applyDiagonalLinesForClosedDays(newSheet, year, month);
 
   } catch (e) {
     console.error('新しいシートの初期化中にエラーが発生しました: ' + e.message);
