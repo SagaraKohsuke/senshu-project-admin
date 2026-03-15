@@ -1333,54 +1333,6 @@ function getMonthlyReservationCounts(year, month) {
 }
 
 /**
- * createMonthlyMealSheet の手動テスト用関数
- * GASエディタから直接実行してシート生成を確認する
- * ※ テスト後に生成されたシートは手動で削除してください
- */
-function testCreateMonthlyMealSheet() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-
-  console.log(`=== testCreateMonthlyMealSheet 開始: ${year}年${month}月 ===`);
-
-  // 既存シートがある場合は一度削除して再生成（テスト用）
-  const mealSheetId = "17iuUzC-fx8lfMA8M5HrLwMlzvCpS9TCRcoCDzMrHjE4";
-  const mealSS = SpreadsheetApp.openById(mealSheetId);
-  const testSheetName = `テスト_食事原紙_${year}${month.toString().padStart(2, "0")}`;
-  const existing = mealSS.getSheetByName(testSheetName);
-  if (existing) {
-    mealSS.deleteSheet(existing);
-    console.log(`既存シート「${testSheetName}」を削除しました`);
-  }
-
-  // テスト用に一時的にシート名を上書きするため、createMonthlyMealSheetを呼んだ後リネーム
-  const result = createMonthlyMealSheet(year, month);
-  console.log('結果:', JSON.stringify(result));
-
-  // 本来のシート名 → テスト用シート名にリネーム
-  const originalSheetName = `食事原紙_${year}${month.toString().padStart(2, "0")}`;
-  const createdSheet = mealSS.getSheetByName(originalSheetName);
-  if (createdSheet) {
-    createdSheet.setName(testSheetName);
-    console.log(`シート名を「${testSheetName}」にリネームしました`);
-  }
-
-  // 曜日検証ログ
-  const newSheet = mealSS.getSheetByName(testSheetName);
-  if (newSheet) {
-    console.log('--- 前半ヘッダー検証 (行2, C〜F列) ---');
-    console.log(`1日: ${newSheet.getRange(2, 3).getValue()} ${newSheet.getRange(2, 4).getValue()}`);
-    console.log(`2日: ${newSheet.getRange(2, 5).getValue()} ${newSheet.getRange(2, 6).getValue()}`);
-    console.log(`3日: ${newSheet.getRange(2, 7).getValue()} ${newSheet.getRange(2, 8).getValue()}`);
-
-    const expected1 = new Date(year, month - 1, 1);
-    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
-    console.log(`1日の期待曜日: ${dayNames[expected1.getDay()]}`);
-  }
-}
-
-/**
  * 2ヶ月以上前の月次シートを自動削除する関数
  * 毎月1日にトリガーから自動実行できます
  * @return {Object} 削除結果（deletedCount, notFoundCount）
